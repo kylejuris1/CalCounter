@@ -9,6 +9,9 @@ console.log('AWS_ACCESS_KEY_ID:', process.env.AWS_ACCESS_KEY_ID ? `${process.env
 console.log('AWS_SECRET_ACCESS_KEY:', process.env.AWS_SECRET_ACCESS_KEY ? 'PRESENT' : 'MISSING');
 console.log('AWS_S3_BUCKET_NAME:', process.env.AWS_S3_BUCKET_NAME || 'MISSING');
 console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? `${process.env.OPENAI_API_KEY.substring(0, 10)}...` : 'MISSING');
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL || 'MISSING');
+console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'PRESENT' : 'MISSING');
+console.log('REVENUECAT_WEBHOOK_AUTH_TOKEN:', process.env.REVENUECAT_WEBHOOK_AUTH_TOKEN ? 'PRESENT' : 'MISSING');
 
 // Export a function to verify env vars are loaded
 export function verifyEnv() {
@@ -17,7 +20,10 @@ export function verifyEnv() {
     'AWS_ACCESS_KEY_ID', 
     'AWS_SECRET_ACCESS_KEY', 
     'AWS_S3_BUCKET_NAME',
-    'AWS_REGION'
+    'AWS_REGION',
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'REVENUECAT_WEBHOOK_AUTH_TOKEN',
   ];
   const missing = required.filter(key => !process.env[key]);
   

@@ -1,9 +1,10 @@
 import { useState } from "react"
-import { View, Text, ScrollView, StyleSheet, Pressable, Switch, Alert } from "react-native"
+import { View, Text, ScrollView, StyleSheet, Pressable, Switch, Alert, TextInput } from "react-native"
 import { useGoals } from "../hooks/useGoals"
 import { PAYWALL_RESULT } from "react-native-purchases-ui"
-import { REVENUECAT_ENTITLEMENT_ID, REVENUECAT_PRODUCTS } from "../services/revenuecat"
+import { REVENUECAT_CREDITS_PRODUCT_IDS, REVENUECAT_PRODUCTS } from "../services/revenuecat"
 import { useRevenueCat } from "../hooks/useRevenueCat"
+import { useSupabaseAuth } from "../hooks/useSupabaseAuth"
 import GoalEditorModal from "./goal-editor-modal"
 
 interface SettingsProps {
@@ -14,37 +15,20 @@ export default function Settings({ revenueCat }: SettingsProps) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [darkModeEnabled, setDarkModeEnabled] = useState(true)
   const { goals, updateCalorieGoal, updateMacroGoals } = useGoals()
+  const { user, loading: authLoading, isAuthenticated, sendOtp, verifyOtp, signOut } = useSupabaseAuth()
   const [calorieModalVisible, setCalorieModalVisible] = useState(false)
   const [macroModalVisible, setMacroModalVisible] = useState(false)
   const [activePurchase, setActivePurchase] = useState<string | null>(null)
-
-  const handlePaywallIfNeeded = async () => {
-    try {
-      const result = await revenueCat.showPaywallIfNeeded()
-      const unlocked = revenueCat.getPaywallSuccess(result)
-
-      if (unlocked) {
-        Alert.alert("Success", "Your premium access is active.")
-        return
-      }
-
-      if (result === PAYWALL_RESULT.CANCELLED) {
-        Alert.alert("Purchase cancelled", "You can try again anytime.")
-        return
-      }
-
-      Alert.alert("Paywall closed", "No purchase was completed.")
-    } catch (error) {
-      Alert.alert("Paywall error", error instanceof Error ? error.message : "Unable to open paywall.")
-    }
-  }
+  const [email, setEmail] = useState("")
+  const [otpCode, setOtpCode] = useState("")
+  const [authActionLoading, setAuthActionLoading] = useState(false)
 
   const handleShowPaywall = async () => {
     try {
       const result = await revenueCat.showPaywall()
 
       if (result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED) {
-        Alert.alert("Success", "Your premium access is active.")
+        Alert.alert("Success", "Purchase completed successfully.")
         return
       }
 
@@ -62,12 +46,14 @@ export default function Settings({ revenueCat }: SettingsProps) {
   const handleRestore = async () => {
     try {
       const info = await revenueCat.restore()
-      const hasEntitlement = Boolean(info.entitlements.active[REVENUECAT_ENTITLEMENT_ID])
+      const restoredCreditsPurchases = info.nonSubscriptionTransactions.filter(
+        (transaction) => REVENUECAT_CREDITS_PRODUCT_IDS.includes(transaction.productIdentifier as typeof REVENUECAT_CREDITS_PRODUCT_IDS[number])
+      )
 
-      if (hasEntitlement) {
-        Alert.alert("Restored", "Your Harba Media Pro subscription is active.")
+      if (restoredCreditsPurchases.length > 0) {
+        Alert.alert("Restored", `Found ${restoredCreditsPurchases.length} credits purchase(s).`)
       } else {
-        Alert.alert("No purchases found", "No active purchases were restored for this account.")
+        Alert.alert("No purchases found", "No credits purchases were restored for this account.")
       }
     } catch (error) {
       Alert.alert("Restore failed", error instanceof Error ? error.message : "Unable to restore purchases.")
@@ -94,7 +80,7 @@ export default function Settings({ revenueCat }: SettingsProps) {
         return
       }
 
-      Alert.alert("Purchase successful", `${productId} purchase completed.`)
+      Alert.alert("Purchase successful", "500 credits purchased successfully.")
     } catch (error) {
       Alert.alert("Purchase failed", error instanceof Error ? error.message : "Unable to complete purchase.")
     } finally {
@@ -102,33 +88,130 @@ export default function Settings({ revenueCat }: SettingsProps) {
     }
   }
 
+  const handleSendOtp = async () => {
+    if (!email.trim()) {
+      Alert.alert("Missing email", "Please enter your email address.")
+      return
+    }
+
+    setAuthActionLoading(true)
+    try {
+      await sendOtp(email.trim().toLowerCase())
+      Alert.alert("OTP sent", "Check your email for the verification code.")
+    } catch (error) {
+      Alert.alert("OTP error", error instanceof Error ? error.message : "Failed to send OTP.")
+    } finally {
+      setAuthActionLoading(false)
+    }
+  }
+
+  const handleVerifyOtp = async () => {
+    if (!email.trim() || !otpCode.trim()) {
+      Alert.alert("Missing info", "Enter your email and OTP code.")
+      return
+    }
+
+    setAuthActionLoading(true)
+    try {
+      await verifyOtp(email.trim().toLowerCase(), otpCode.trim())
+      setOtpCode("")
+      Alert.alert("Success", "You are now signed in.")
+    } catch (error) {
+      Alert.alert("Verification failed", error instanceof Error ? error.message : "Failed to verify OTP.")
+    } finally {
+      setAuthActionLoading(false)
+    }
+  }
+
+  const handleSignOut = async () => {
+    setAuthActionLoading(true)
+    try {
+      await signOut()
+      Alert.alert("Signed out", "You have been signed out.")
+    } catch (error) {
+      Alert.alert("Sign out failed", error instanceof Error ? error.message : "Unable to sign out.")
+    } finally {
+      setAuthActionLoading(false)
+    }
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Settings</Text>
 
-      {/* Subscription Section */}
+      {/* Authentication */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Subscription</Text>
+        <Text style={styles.sectionTitle}>Authentication</Text>
         <View style={styles.settingItem}>
-          <Text style={styles.settingLabel}>Harba Media Pro</Text>
-          <Text style={[styles.settingValue, revenueCat.isPro ? styles.successText : styles.warningText]}>
-            {revenueCat.isPro ? "Active" : "Inactive"}
+          <Text style={styles.settingLabel}>Status</Text>
+          <Text style={styles.settingValue}>
+            {authLoading ? "Checking..." : isAuthenticated ? "Signed In" : "Signed Out"}
           </Text>
         </View>
-        <Pressable
-          style={styles.settingItem}
-          onPress={handlePaywallIfNeeded}
-          disabled={!revenueCat.isReady || revenueCat.actionStatus === "loading"}
-        >
-          <Text style={styles.settingLabel}>Unlock Harba Media Pro</Text>
-          <Text style={styles.settingValue}>→</Text>
-        </Pressable>
+        {isAuthenticated ? (
+          <>
+            <View style={styles.settingItem}>
+              <Text style={styles.settingLabel}>Account</Text>
+              <Text style={styles.settingValue}>{user?.email ?? "Unknown"}</Text>
+            </View>
+            <Pressable
+              style={styles.settingItem}
+              onPress={handleSignOut}
+              disabled={authActionLoading}
+            >
+              <Text style={styles.settingLabel}>Sign Out</Text>
+              <Text style={styles.settingValue}>{authActionLoading ? "..." : "→"}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="Email address"
+              placeholderTextColor="#6b7280"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+            />
+            <Pressable
+              style={styles.settingItem}
+              onPress={handleSendOtp}
+              disabled={authActionLoading}
+            >
+              <Text style={styles.settingLabel}>Send OTP</Text>
+              <Text style={styles.settingValue}>{authActionLoading ? "..." : "→"}</Text>
+            </Pressable>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter OTP code"
+              placeholderTextColor="#6b7280"
+              autoCapitalize="none"
+              keyboardType="number-pad"
+              value={otpCode}
+              onChangeText={setOtpCode}
+            />
+            <Pressable
+              style={styles.settingItem}
+              onPress={handleVerifyOtp}
+              disabled={authActionLoading}
+            >
+              <Text style={styles.settingLabel}>Verify OTP</Text>
+              <Text style={styles.settingValue}>{authActionLoading ? "..." : "→"}</Text>
+            </Pressable>
+          </>
+        )}
+      </View>
+
+      {/* RevenueCat Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Credits</Text>
         <Pressable
           style={styles.settingItem}
           onPress={handleShowPaywall}
           disabled={!revenueCat.isReady || revenueCat.actionStatus === "loading"}
         >
-          <Text style={styles.settingLabel}>Open Paywall</Text>
+          <Text style={styles.settingLabel}>Open Credits Paywall</Text>
           <Text style={styles.settingValue}>→</Text>
         </Pressable>
         <Pressable
@@ -144,7 +227,7 @@ export default function Settings({ revenueCat }: SettingsProps) {
           onPress={handleOpenCustomerCenter}
           disabled={!revenueCat.isReady || revenueCat.actionStatus === "loading"}
         >
-          <Text style={styles.settingLabel}>Manage Subscription</Text>
+          <Text style={styles.settingLabel}>Open Customer Center</Text>
           <Text style={styles.settingValue}>→</Text>
         </Pressable>
         <View style={styles.settingItem}>
@@ -159,40 +242,32 @@ export default function Settings({ revenueCat }: SettingsProps) {
         ) : null}
       </View>
 
-      {/* Direct Purchases (Debug) */}
+      {/* Direct Purchase */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Direct Purchases (Debug)</Text>
+        <Text style={styles.sectionTitle}>Direct Purchase</Text>
         <Pressable
           style={styles.settingItem}
-          onPress={() => handleDirectPurchase("monthly")}
+          onPress={() => handleDirectPurchase("credits500")}
           disabled={activePurchase !== null}
         >
-          <Text style={styles.settingLabel}>Buy Monthly ({REVENUECAT_PRODUCTS.monthly})</Text>
-          <Text style={styles.settingValue}>{activePurchase === "monthly" ? "..." : "→"}</Text>
+          <Text style={styles.settingLabel}>Buy 500 Credits ($4.99) ({REVENUECAT_PRODUCTS.credits500})</Text>
+          <Text style={styles.settingValue}>{activePurchase === "credits500" ? "..." : "→"}</Text>
         </Pressable>
         <Pressable
           style={styles.settingItem}
-          onPress={() => handleDirectPurchase("yearly")}
+          onPress={() => handleDirectPurchase("credits1000")}
           disabled={activePurchase !== null}
         >
-          <Text style={styles.settingLabel}>Buy Yearly ({REVENUECAT_PRODUCTS.yearly})</Text>
-          <Text style={styles.settingValue}>{activePurchase === "yearly" ? "..." : "→"}</Text>
+          <Text style={styles.settingLabel}>Buy 1000 Credits ($9.99) ({REVENUECAT_PRODUCTS.credits1000})</Text>
+          <Text style={styles.settingValue}>{activePurchase === "credits1000" ? "..." : "→"}</Text>
         </Pressable>
         <Pressable
           style={styles.settingItem}
-          onPress={() => handleDirectPurchase("lifetime")}
+          onPress={() => handleDirectPurchase("credits2000")}
           disabled={activePurchase !== null}
         >
-          <Text style={styles.settingLabel}>Buy Lifetime ({REVENUECAT_PRODUCTS.lifetime})</Text>
-          <Text style={styles.settingValue}>{activePurchase === "lifetime" ? "..." : "→"}</Text>
-        </Pressable>
-        <Pressable
-          style={styles.settingItem}
-          onPress={() => handleDirectPurchase("consumable")}
-          disabled={activePurchase !== null}
-        >
-          <Text style={styles.settingLabel}>Buy 500 Credits ($4.99) ({REVENUECAT_PRODUCTS.consumable})</Text>
-          <Text style={styles.settingValue}>{activePurchase === "consumable" ? "..." : "→"}</Text>
+          <Text style={styles.settingLabel}>Buy 2000 Credits ($19.99) ({REVENUECAT_PRODUCTS.credits2000})</Text>
+          <Text style={styles.settingValue}>{activePurchase === "credits2000" ? "..." : "→"}</Text>
         </Pressable>
       </View>
 
@@ -340,13 +415,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#9ca3af",
   },
+  input: {
+    backgroundColor: "#111827",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#374151",
+    color: "#ffffff",
+    fontSize: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
   dangerText: {
     color: "#ef4444",
-  },
-  successText: {
-    color: "#22c55e",
-  },
-  warningText: {
-    color: "#f59e0b",
   },
 })

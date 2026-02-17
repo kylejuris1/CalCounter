@@ -5,12 +5,10 @@ import {
   RevenueCatProductId,
   getCustomerInfo,
   getCurrentOffering,
-  hasProEntitlement,
   initializeRevenueCat,
   isUserCancelledError,
   openCustomerCenter,
   presentPaywall,
-  presentPaywallIfNeeded,
   purchaseProduct,
   restorePurchases,
 } from "../services/revenuecat";
@@ -97,16 +95,6 @@ export function useRevenueCat() {
     return result;
   }, [refreshCustomerInfo, withActionState]);
 
-  const showPaywallIfNeeded = useCallback(async () => {
-    const result = await withActionState(async () => {
-      const paywallResult = await presentPaywallIfNeeded();
-      await refreshCustomerInfo();
-      return paywallResult;
-    });
-
-    return result;
-  }, [refreshCustomerInfo, withActionState]);
-
   const purchaseByProductId = useCallback(
     async (productId: RevenueCatProductId) => {
       return withActionState(async () => {
@@ -150,12 +138,10 @@ export function useRevenueCat() {
       offering,
       actionStatus,
       lastError,
-      isPro: hasProEntitlement(customerInfo),
       refreshAll,
       refreshCustomerInfo,
       refreshOffering,
       showPaywall,
-      showPaywallIfNeeded,
       purchaseByProductId,
       restore,
       openSubscriptionCenter,
@@ -176,7 +162,6 @@ export function useRevenueCat() {
       refreshOffering,
       restore,
       showPaywall,
-      showPaywallIfNeeded,
     ]
   );
 }

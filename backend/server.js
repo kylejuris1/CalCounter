@@ -6,6 +6,9 @@ import cors from 'cors';
 import { networkInterfaces } from 'os';
 import { uploadImage } from './routes/upload.js';
 import { analyzeFood } from './routes/analyze.js';
+import { handleRevenueCatWebhook } from './routes/revenuecatWebhook.js';
+import { getCreditsBalance } from './routes/credits.js';
+import { requireAuth } from './middleware/requireAuth.js';
 import { verifyEnv } from './config.js';
 
 const app = express();
@@ -98,6 +101,8 @@ app.get('/health', (req, res) => {
 // Routes
 app.post('/api/upload', uploadImage);
 app.post('/api/analyze', analyzeFood);
+app.post('/api/revenuecat/webhook', handleRevenueCatWebhook);
+app.get('/api/credits/balance', requireAuth, getCreditsBalance);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

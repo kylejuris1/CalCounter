@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react"
-import { View, ScrollView, StyleSheet, Modal, Text, ActivityIndicator } from "react-native"
+import { View, ScrollView, StyleSheet, Modal, Text, ActivityIndicator, Pressable, Alert } from "react-native"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { CustomPurchaseControllerProvider, SuperwallProvider, usePlacement } from "./services/superwallCompat"
 import "./app/globals.css"
 import Header from "./components/header"
 import TabNavigation from "./components/tab-navigation"
@@ -16,8 +17,16 @@ import FloatingActionButton from "./components/floating-action-button"
 import { useFoodData } from "./hooks/useFoodData"
 import { useGoals } from "./hooks/useGoals"
 import { useRevenueCat } from "./hooks/useRevenueCat"
+import {
+  initializeRevenueCat,
+  purchaseProductByIdentifier,
+  restorePurchases,
+} from "./services/revenuecat"
 
-export default function App() {
+const SUPERWALL_API_KEY = process.env.EXPO_PUBLIC_SUPERWALL_PUBLIC_API_KEY ?? ""
+const BUY_CREDITS_PLACEMENT = "buy_credits"
+
+function MainApp() {
   const [activeTab, setActiveTab] = useState("today")
   const [activePage, setActivePage] = useState("home")
   const [cameraVisible, setCameraVisible] = useState(false)
@@ -25,6 +34,11 @@ export default function App() {
   const { addFood, getTodayFoods, getTodayTotals, getWeeklyData, deleteFood, updateFood } = useFoodData()
   const { goals } = useGoals()
   const revenueCat = useRevenueCat()
+  const { registerPlacement } = usePlacement({
+    onError: (error: unknown) => {
+      Alert.alert("Paywall error", error instanceof Error ? error.message : String(error))
+    },
+  })
 
   // Suppress Expo update errors
   useEffect(() => {
@@ -74,6 +88,20 @@ export default function App() {
     setCameraVisible(false)
   }
 
+  const handleBuyCredits = async () => {
+    try {
+      await registerPlacement({
+        placement: BUY_CREDITS_PLACEMENT,
+        params: {
+          source: "home",
+          screen: activePage,
+        },
+      })
+    } catch (error) {
+      Alert.alert("Paywall error", error instanceof Error ? error.message : "Unable to open credits paywall.")
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar style="light" />
@@ -104,6 +132,10 @@ export default function App() {
                   fat: goals.fatGoal,
                 }}
               />
+
+              <Pressable style={styles.buyCreditsButton} onPress={handleBuyCredits}>
+                <Text style={styles.buyCreditsButtonText}>Buy Credits</Text>
+              </Pressable>
 
               {/* Recently Uploaded */}
               <RecentlyUploaded 
@@ -159,6 +191,58 @@ export default function App() {
   )
 }
 
+export default function App() {
+  useEffect(() => {
+    initializeRevenueCat().catch((error) => {
+      console.error("[RevenueCat] Initialization failed", error)
+    })
+  }, [])
+
+  return (
+    <SuperwallProvider
+      apiKeys={{ android: SUPERWALL_API_KEY, ios: SUPERWALL_API_KEY }}
+      options={{
+        manualPurchaseManagement: true,
+      }}
+      onConfigurationError={(error) => {
+        console.error("[Superwall] Configuration failed", error)
+      }}
+    >
+      <CustomPurchaseControllerProvider
+        controller={{
+          onPurchase: async ({ productId }: { productId: string }) => {
+            try {
+              const result = await purchaseProductByIdentifier(productId)
+              if (result.userCancelled) {
+                return { type: "cancelled" as const }
+              }
+              return { type: "purchased" as const }
+            } catch (error) {
+              return {
+                type: "failed" as const,
+                error: error instanceof Error ? error.message : "Purchase failed",
+              }
+            }
+          },
+          onPurchaseRestore: async () => {
+            try {
+              await restorePurchases()
+              return { type: "restored" as const }
+            } catch (error) {
+              return {
+                type: "failed" as const,
+                error: error instanceof Error ? error.message : "Restore failed",
+              }
+            }
+          },
+        }}
+      >
+        <MainApp />
+      </CustomPurchaseControllerProvider>
+    </SuperwallProvider>
+  )
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -205,5 +289,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     textAlign: "center",
+  },
+  buyCreditsButton: {
+    marginTop: 16,
+    marginBottom: 20,
+    alignSelf: "center",
+    backgroundColor: "#f97316",
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  buyCreditsButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 })

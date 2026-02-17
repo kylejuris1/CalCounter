@@ -7,21 +7,16 @@ import Purchases, {
 } from "react-native-purchases";
 import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
 
-export const REVENUECAT_API_KEY = "test_FHLAHISuTvnWZPmufpwsJsuqvuT";
-export const REVENUECAT_ENTITLEMENT_ID = "Harba Media Pro";
+export const REVENUECAT_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_PUBLIC_API_KEY ?? "";
 export const REVENUECAT_OFFERING_ID = "default";
 
 export const REVENUECAT_PRODUCTS = {
-  monthly: "monthly",
-  yearly: "yearly",
-  lifetime: "lifetime",
-  consumable: "credits_500",
+  credits500: "credits_500",
+  credits1000: "credits_1000",
+  credits2000: "credits_2000",
 } as const;
 
-const SUBSCRIPTION_PRODUCT_IDS: ReadonlySet<string> = new Set([
-  REVENUECAT_PRODUCTS.monthly,
-  REVENUECAT_PRODUCTS.yearly,
-]);
+export const REVENUECAT_CREDITS_PRODUCT_IDS = Object.values(REVENUECAT_PRODUCTS);
 
 export type RevenueCatProductId = (typeof REVENUECAT_PRODUCTS)[keyof typeof REVENUECAT_PRODUCTS];
 
@@ -65,16 +60,22 @@ export const initializeRevenueCat = async () => {
   Purchases.configure({ apiKey: REVENUECAT_API_KEY });
 };
 
-export const getCustomerInfo = async (): Promise<CustomerInfo> => {
-  return Purchases.getCustomerInfo();
-};
-
-export const hasProEntitlement = (customerInfo: CustomerInfo | null): boolean => {
-  if (!customerInfo) {
-    return false;
+export const syncRevenueCatAppUser = async (userId: string | null) => {
+  const configured = await Purchases.isConfigured();
+  if (!configured) {
+    await initializeRevenueCat();
   }
 
-  return Boolean(customerInfo.entitlements.active[REVENUECAT_ENTITLEMENT_ID]);
+  if (userId) {
+    await Purchases.logIn(userId);
+    return;
+  }
+
+  await Purchases.logOut();
+};
+
+export const getCustomerInfo = async (): Promise<CustomerInfo> => {
+  return Purchases.getCustomerInfo();
 };
 
 export const getCurrentOffering = async (): Promise<PurchasesOffering | null> => {
@@ -90,9 +91,7 @@ export const getCurrentOffering = async (): Promise<PurchasesOffering | null> =>
 const getStoreProductForId = async (
   productId: RevenueCatProductId
 ): Promise<PurchasesStoreProduct | null> => {
-  const productCategory = SUBSCRIPTION_PRODUCT_IDS.has(productId)
-    ? PRODUCT_CATEGORY.SUBSCRIPTION
-    : PRODUCT_CATEGORY.NON_SUBSCRIPTION;
+  const productCategory = PRODUCT_CATEGORY.NON_SUBSCRIPTION;
 
   const products = await Purchases.getProducts([productId], productCategory);
   return products[0] ?? null;
@@ -124,18 +123,18 @@ export const purchaseProduct = async (
   }
 };
 
+export const purchaseProductByIdentifier = async (
+  productId: string
+): Promise<RevenueCatPurchaseResult> => {
+  return purchaseProduct(productId as RevenueCatProductId);
+};
+
 export const restorePurchases = async (): Promise<CustomerInfo> => {
   return Purchases.restorePurchases();
 };
 
 export const presentPaywall = async (): Promise<PAYWALL_RESULT> => {
   return RevenueCatUI.presentPaywall();
-};
-
-export const presentPaywallIfNeeded = async (): Promise<PAYWALL_RESULT> => {
-  return RevenueCatUI.presentPaywallIfNeeded({
-    requiredEntitlementIdentifier: REVENUECAT_ENTITLEMENT_ID,
-  });
 };
 
 export const openCustomerCenter = async (): Promise<void> => {

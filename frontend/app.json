@@ -4,10 +4,10 @@
     "slug": "calorie-watcher",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./public/icon.svg",
+    "icon": "./public/apple-icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./public/icon.svg",
+      "image": "./public/apple-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -24,7 +24,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./public/icon.svg",
+        "foregroundImage": "./public/apple-icon.png",
         "backgroundColor": "#000000"
       },
       "package": "com.caloriewatcher.app",
@@ -32,7 +32,9 @@
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
-        "com.android.vending.BILLING"
+        "com.android.vending.BILLING",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -43,12 +45,18 @@
       "enabled": false
     },
     "plugins": [
+      "expo-dev-client",
       [
         "expo-camera",
         {
           "cameraPermission": "Allow Calorie Watcher to access your camera to take photos of your food."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ba6097f1-8e45-4fa4-9a5b-fb73ef1a6b9b"
+      }
+    }
   }
 }
