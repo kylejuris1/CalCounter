@@ -21,56 +21,58 @@ export default function CalorieOverview({ totals, calorieGoal }: CalorieOverview
   const isOverTarget = caloriesConsumed > calorieGoal
 
   return (
-    <View style={styles.container}>
-      <View style={styles.textContainer}>
-        {isOverTarget ? (
-          <>
-            <Text style={[styles.calories, styles.overText]}>+{caloriesOver.toLocaleString()}</Text>
-            <Text style={styles.label}>Calories over target</Text>
-            <Text style={styles.consumed}>{caloriesConsumed} / {calorieGoal} consumed</Text>
-          </>
-        ) : (
-          <>
-            <Text style={[styles.calories, styles.remainingText]}>{caloriesRemaining.toLocaleString()}</Text>
-            <Text style={styles.label}>Calories left</Text>
-            <Text style={styles.consumed}>{caloriesConsumed} / {calorieGoal} consumed</Text>
-          </>
-        )}
-      </View>
+    <View style={styles.card}>
+      <View style={styles.container}>
+        <View style={styles.textContainer}>
+          {isOverTarget ? (
+            <>
+              <Text style={[styles.calories, styles.overText]}>+{caloriesOver.toLocaleString()}</Text>
+              <Text style={styles.label}>Calories over target</Text>
+              <Text style={styles.consumed}>{caloriesConsumed} / {calorieGoal} consumed</Text>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.calories, styles.remainingText]}>{caloriesRemaining.toLocaleString()}</Text>
+              <Text style={styles.label}>Calories left</Text>
+              <Text style={styles.consumed}>{caloriesConsumed} / {calorieGoal} consumed</Text>
+            </>
+          )}
+        </View>
 
-      <View style={styles.circleContainer}>
-        <Svg width={128} height={128} viewBox="0 0 120 120" style={{ transform: [{ rotate: '-90deg' }] }}>
-          <Circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="8" />
-          <Circle
-            cx="60"
-            cy="60"
-            r="50"
-            fill="none"
-            stroke="url(#gradientProgress)"
-            strokeWidth="8"
-            strokeDasharray={strokeDasharray}
-            strokeLinecap="round"
-          />
-          <Defs>
-            <LinearGradient id="gradientProgress" x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0%" stopColor="#4a90e2" />
-              <Stop offset="100%" stopColor="#357abd" />
-            </LinearGradient>
-          </Defs>
-        </Svg>
-        <View style={styles.iconContainer}>
-          <Svg
-            width={32}
-            height={32}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <Path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+        <View style={styles.circleContainer}>
+          <Svg width={128} height={128} viewBox="0 0 120 120" style={{ transform: [{ rotate: '-90deg' }] }}>
+            <Circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="8" />
+            <Circle
+              cx="60"
+              cy="60"
+              r="50"
+              fill="none"
+              stroke="url(#gradientProgress)"
+              strokeWidth="8"
+              strokeDasharray={strokeDasharray}
+              strokeLinecap="round"
+            />
+            <Defs>
+              <LinearGradient id="gradientProgress" x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor="#6b7280" />
+                <Stop offset="100%" stopColor="#374151" />
+              </LinearGradient>
+            </Defs>
           </Svg>
+          <View style={styles.iconContainer}>
+            <Svg
+              width={32}
+              height={32}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#111827"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <Path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+            </Svg>
+          </View>
         </View>
       </View>
     </View>
@@ -78,11 +80,21 @@ export default function CalorieOverview({ totals, calorieGoal }: CalorieOverview
 }
 
 const styles = StyleSheet.create({
+  card: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
   container: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 32,
   },
   textContainer: {
     flex: 1,
@@ -90,22 +102,22 @@ const styles = StyleSheet.create({
   calories: {
     fontSize: 48,
     fontWeight: "bold",
-    color: "#ffffff",
+    color: "#111827",
     marginBottom: 8,
   },
   remainingText: {
-    color: "#10b981", // Green for remaining
+    color: "#111827",
   },
   overText: {
-    color: "#ef4444", // Red for over target
+    color: "#ef4444",
   },
   label: {
-    color: "#9ca3af",
+    color: "#6b7280",
     fontSize: 14,
     marginBottom: 4,
   },
   consumed: {
-    color: "#6b7280",
+    color: "#9ca3af",
     fontSize: 12,
     marginTop: 4,
   },

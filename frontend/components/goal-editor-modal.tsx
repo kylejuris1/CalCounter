@@ -12,6 +12,7 @@ interface GoalEditorModalProps {
     fatGoal?: number
   }
   onSave: (values: any) => void
+  light?: boolean
 }
 
 export default function GoalEditorModal({
@@ -20,7 +21,10 @@ export default function GoalEditorModal({
   type,
   currentGoals,
   onSave,
+  light = false,
 }: GoalEditorModalProps) {
+  const isLight = light
+  const theme = isLight ? lightModalTheme : darkModalTheme
   const [calorieGoal, setCalorieGoal] = useState("")
   const [proteinGoal, setProteinGoal] = useState("")
   const [carbsGoal, setCarbsGoal] = useState("")
@@ -63,64 +67,64 @@ export default function GoalEditorModal({
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <Text style={styles.title}>
+        <View style={[styles.modal, { backgroundColor: theme.modalBg, borderColor: theme.border }]}>
+          <Text style={[styles.title, { color: theme.text }]}>
             {type === "calorie" ? "Daily Calorie Goal" : "Macro Targets"}
           </Text>
 
           {type === "calorie" ? (
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Calories per day</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>Calories per day</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
                 value={calorieGoal}
                 onChangeText={setCalorieGoal}
                 keyboardType="numeric"
                 placeholder="2000"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={theme.placeholder}
               />
             </View>
           ) : (
             <>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Protein (grams)</Text>
+                <Text style={[styles.label, { color: theme.muted }]}>Protein (grams)</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
                   value={proteinGoal}
                   onChangeText={setProteinGoal}
                   keyboardType="numeric"
                   placeholder="150"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Carbs (grams)</Text>
+                <Text style={[styles.label, { color: theme.muted }]}>Carbs (grams)</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
                   value={carbsGoal}
                   onChangeText={setCarbsGoal}
                   keyboardType="numeric"
                   placeholder="200"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Fats (grams)</Text>
+                <Text style={[styles.label, { color: theme.muted }]}>Fats (grams)</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]}
                   value={fatGoal}
                   onChangeText={setFatGoal}
                   keyboardType="numeric"
                   placeholder="65"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={theme.placeholder}
                 />
               </View>
             </>
           )}
 
           <View style={styles.buttonContainer}>
-            <Pressable style={[styles.button, styles.cancelButton]} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+            <Pressable style={[styles.button, { backgroundColor: theme.cancelBg }]} onPress={onClose}>
+              <Text style={[styles.cancelButtonText, { color: theme.cancelText }]}>Cancel</Text>
             </Pressable>
             <Pressable style={[styles.button, styles.saveButton]} onPress={handleSave}>
               <Text style={styles.saveButtonText}>Save</Text>
@@ -132,27 +136,46 @@ export default function GoalEditorModal({
   )
 }
 
+const darkModalTheme = {
+  modalBg: "#111827",
+  border: "#374151",
+  text: "#ffffff",
+  muted: "#9ca3af",
+  inputBg: "#1f2937",
+  placeholder: "#6b7280",
+  cancelBg: "#374151",
+  cancelText: "#ffffff",
+}
+
+const lightModalTheme = {
+  modalBg: "#ffffff",
+  border: "#e5e7eb",
+  text: "#111827",
+  muted: "#6b7280",
+  inputBg: "#f9fafb",
+  placeholder: "#9ca3af",
+  cancelBg: "#e5e7eb",
+  cancelText: "#374151",
+}
+
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   modal: {
-    backgroundColor: "#111827",
     borderRadius: 16,
     padding: 24,
     width: "100%",
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: "#374151",
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#ffffff",
     marginBottom: 24,
     textAlign: "center",
   },
@@ -161,17 +184,13 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: "#9ca3af",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#1f2937",
     borderRadius: 8,
     padding: 12,
-    color: "#ffffff",
     fontSize: 16,
     borderWidth: 1,
-    borderColor: "#374151",
   },
   buttonContainer: {
     flexDirection: "row",
@@ -184,11 +203,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  cancelButton: {
-    backgroundColor: "#374151",
-  },
   cancelButtonText: {
-    color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
   },

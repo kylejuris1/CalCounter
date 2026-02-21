@@ -8,6 +8,9 @@ import { uploadImage } from './routes/upload.js';
 import { analyzeFood } from './routes/analyze.js';
 import { handleRevenueCatWebhook } from './routes/revenuecatWebhook.js';
 import { getCreditsBalance } from './routes/credits.js';
+import { submitGuestOnboarding } from './routes/guest.js';
+import { linkGuest, ensureAppUser, deleteAccount } from './routes/auth.js';
+import { updateHealthGoalsRoute } from './routes/healthGoals.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { verifyEnv } from './config.js';
 
@@ -103,6 +106,21 @@ app.post('/api/upload', uploadImage);
 app.post('/api/analyze', analyzeFood);
 app.post('/api/revenuecat/webhook', handleRevenueCatWebhook);
 app.get('/api/credits/balance', requireAuth, getCreditsBalance);
+
+app.post('/api/guest/onboarding', submitGuestOnboarding);
+app.post('/api/auth/link-guest', requireAuth, linkGuest);
+app.post('/api/auth/ensure-app-user', requireAuth, ensureAppUser);
+app.post('/api/auth/delete-account', requireAuth, deleteAccount);
+
+// Health goals: require auth, or admin key + body.user_id for server-side use
+app.post('/api/health-goals/update', (req, res, next) => {
+  const adminKey = process.env.ADMIN_API_KEY;
+  if (adminKey && req.headers['x-admin-key'] === adminKey && req.body?.user_id) {
+    req.appUserId = req.body.user_id;
+    return next();
+  }
+  requireAuth(req, res, next);
+}, updateHealthGoalsRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

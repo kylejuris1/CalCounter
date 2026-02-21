@@ -14,6 +14,8 @@
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/slider": "^5.1.2",
+    "@react-native-picker/picker": "^2.11.4",
     "@supabase/supabase-js": "^2.95.3",
     "@superwall/react-native-superwall": "^2.1.7",
     "date-fns": "4.1.0",
@@ -22,6 +24,7 @@
     "expo-camera": "~17.0.10",
     "expo-dev-client": "~6.0.20",
     "expo-image-picker": "~17.0.10",
+    "expo-notifications": "~0.32.16",
     "expo-status-bar": "~3.0.9",
     "expo-superwall": "^1.0.2",
     "nativewind": "^4.2.1",
@@ -49,5 +52,11 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "minimatch": ">=10.2.1",
+    "fast-xml-parser": ">=5.3.6",
+    "tar": ">=7.5.8",
+    "rimraf": ">=5.0.11"
+  }
 }

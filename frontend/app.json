@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Calorie Watcher",
+    "name": "CalCounter",
     "slug": "calorie-watcher",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./public/apple-icon.png",
+    "icon": "./public/app-icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./public/apple-icon.png",
+      "image": "./public/app-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -24,7 +24,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./public/apple-icon.png",
+        "foregroundImage": "./public/app-icon.png",
         "backgroundColor": "#000000"
       },
       "package": "com.caloriewatcher.app",
@@ -49,9 +49,10 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Calorie Watcher to access your camera to take photos of your food."
+          "cameraPermission": "Allow CalCounter to access your camera to take photos of your food."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "extra": {
       "eas": {

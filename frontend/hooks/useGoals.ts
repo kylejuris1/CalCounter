@@ -6,6 +6,9 @@ export interface Goals {
   proteinGoal: number;
   carbsGoal: number;
   fatGoal: number;
+  weightKg?: number;
+  heightCm?: number;
+  goalWeightKg?: number;
 }
 
 const STORAGE_KEY = '@calorie_watcher_goals';
@@ -62,6 +65,21 @@ export function useGoals() {
     await saveGoals(newGoals);
   };
 
+  const updateWeight = async (weightKg: number) => {
+    const newGoals = { ...goals, weightKg: Math.max(0, weightKg) };
+    await saveGoals(newGoals);
+  };
+
+  const updateGoalWeight = async (goalWeightKg: number) => {
+    const newGoals = { ...goals, goalWeightKg: Math.max(0, goalWeightKg) };
+    await saveGoals(newGoals);
+  };
+
+  const updateHeight = async (heightCm: number) => {
+    const newGoals = { ...goals, heightCm: Math.max(0, heightCm) };
+    await saveGoals(newGoals);
+  };
+
   const resetToDefaults = async () => {
     await saveGoals(DEFAULT_GOALS);
   };
@@ -71,6 +89,9 @@ export function useGoals() {
     isLoading,
     updateCalorieGoal,
     updateMacroGoals,
+    updateWeight,
+    updateGoalWeight,
+    updateHeight,
     resetToDefaults,
   };
 }

@@ -8,8 +8,12 @@ import MacroCircles from "@/components/macro-circles"
 import RecentlyUploaded from "@/components/recently-uploaded"
 import BottomNav from "@/components/bottom-nav"
 
+function todayDateString() {
+  return new Date().toISOString().split("T")[0]
+}
+
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("today")
+  const [selectedDate, setSelectedDate] = useState(todayDateString())
   const [activePage, setActivePage] = useState("home")
 
   const handleLogoClick = () => {
@@ -26,7 +30,7 @@ export default function Home() {
         {activePage === "home" && (
           <>
             {/* Tab Navigation */}
-            <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+            <TabNavigation selectedDate={selectedDate} onDateChange={setSelectedDate} />
 
             {/* Calorie Overview */}
             <CalorieOverview />

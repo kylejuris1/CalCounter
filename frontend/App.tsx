@@ -1,22 +1,24 @@
 import { useState, useEffect } from "react"
 import { View, ScrollView, StyleSheet, Modal, Text, ActivityIndicator, Pressable, Alert } from "react-native"
 import { StatusBar } from "expo-status-bar"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context"
 import { CustomPurchaseControllerProvider, SuperwallProvider, usePlacement } from "./services/superwallCompat"
 import "./app/globals.css"
 import Header from "./components/header"
 import TabNavigation from "./components/tab-navigation"
-import CalorieOverview from "./components/calorie-overview"
-import MacroCircles from "./components/macro-circles"
-import RecentlyUploaded from "./components/recently-uploaded"
+import DashboardPanels from "./components/dashboard-panels"
 import BottomNav from "./components/bottom-nav"
 import Analytics from "./components/analytics"
 import Settings from "./components/settings"
 import CameraModal from "./components/camera-modal"
 import FloatingActionButton from "./components/floating-action-button"
+import LandingPage from "./components/landing/LandingPage"
+import OnboardingFlow from "./components/onboarding/OnboardingFlow"
 import { useFoodData } from "./hooks/useFoodData"
 import { useGoals } from "./hooks/useGoals"
+import { useTheme } from "./hooks/useTheme"
 import { useRevenueCat } from "./hooks/useRevenueCat"
+import { useOnboarding } from "./hooks/useOnboarding"
 import {
   initializeRevenueCat,
   purchaseProductByIdentifier,
@@ -24,17 +26,51 @@ import {
 } from "./services/revenuecat"
 
 const SUPERWALL_API_KEY = process.env.EXPO_PUBLIC_SUPERWALL_PUBLIC_API_KEY ?? ""
-const BUY_CREDITS_PLACEMENT = "buy_credits"
 
-function MainApp() {
-  const [activeTab, setActiveTab] = useState("today")
+function AppContent() {
+  const { isComplete, isLoading, setOnboardingComplete, resetOnboarding } = useOnboarding()
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color="#111827" />
+      </View>
+    )
+  }
+  if (!isComplete && !showOnboarding) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <StatusBar style="dark" />
+        <LandingPage
+          onGetStarted={() => setShowOnboarding(true)}
+          onSignIn={() => setOnboardingComplete()}
+        />
+      </SafeAreaView>
+    )
+  }
+  if (!isComplete && showOnboarding) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <StatusBar style="dark" />
+        <OnboardingFlow onComplete={() => {}} onBackToLanding={() => setShowOnboarding(false)} />
+      </SafeAreaView>
+    )
+  }
+  return <MainApp resetOnboarding={resetOnboarding} />
+}
+
+function MainApp({ resetOnboarding }: { resetOnboarding?: () => Promise<void> }) {
+  const todayStr = new Date().toISOString().split("T")[0]
+  const [selectedDate, setSelectedDate] = useState(todayStr)
   const [activePage, setActivePage] = useState("home")
   const [cameraVisible, setCameraVisible] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const { addFood, getTodayFoods, getTodayTotals, getWeeklyData, deleteFood, updateFood } = useFoodData()
-  const { goals } = useGoals()
+  const { darkMode } = useTheme()
+  const { addFood, getFoodsForDate, getTotalsForDate, getWeeklyData, deleteFood, updateFood, clearAllFoods } = useFoodData()
+  const { goals, updateWeight, updateGoalWeight, updateHeight } = useGoals()
   const revenueCat = useRevenueCat()
-  const { registerPlacement } = usePlacement({
+  usePlacement({
     onError: (error: unknown) => {
       Alert.alert("Paywall error", error instanceof Error ? error.message : String(error))
     },
@@ -88,26 +124,12 @@ function MainApp() {
     setCameraVisible(false)
   }
 
-  const handleBuyCredits = async () => {
-    try {
-      await registerPlacement({
-        placement: BUY_CREDITS_PLACEMENT,
-        params: {
-          source: "home",
-          screen: activePage,
-        },
-      })
-    } catch (error) {
-      Alert.alert("Paywall error", error instanceof Error ? error.message : "Unable to open credits paywall.")
-    }
-  }
-
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar style="light" />
-      <View style={styles.mainContainer}>
+    <SafeAreaView style={[styles.container, darkMode && styles.containerDark]} edges={["top"]}>
+      <StatusBar style={darkMode ? "light" : "dark"} />
+      <View style={[styles.mainContainer, darkMode && styles.mainContainerDark]}>
         {/* Header */}
-        <Header onLogoClick={handleLogoClick} />
+        <Header onLogoClick={handleLogoClick} darkMode={darkMode} />
 
         {/* Main Content */}
         <ScrollView 
@@ -117,41 +139,50 @@ function MainApp() {
         >
           {activePage === "home" && (
             <>
-              {/* Tab Navigation */}
-              <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-
-              {/* Calorie Overview */}
-              <CalorieOverview totals={getTodayTotals()} calorieGoal={goals.calorieGoal} />
-
-              {/* Macro Circles */}
-              <MacroCircles 
-                totals={getTodayTotals()} 
+              <TabNavigation
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+                totalsByDate={getTotalsForDate}
+                calorieGoal={goals.calorieGoal}
+              />
+              <DashboardPanels
+                selectedDate={selectedDate}
+                totals={getTotalsForDate(selectedDate)}
+                calorieGoal={goals.calorieGoal}
                 macroGoals={{
                   protein: goals.proteinGoal,
                   carbs: goals.carbsGoal,
                   fat: goals.fatGoal,
                 }}
-              />
-
-              <Pressable style={styles.buyCreditsButton} onPress={handleBuyCredits}>
-                <Text style={styles.buyCreditsButtonText}>Buy Credits</Text>
-              </Pressable>
-
-              {/* Recently Uploaded */}
-              <RecentlyUploaded 
-                foods={getTodayFoods()} 
-                onDelete={deleteFood}
-                onUpdate={updateFood}
+                foods={getFoodsForDate(selectedDate)}
+                onDeleteFood={deleteFood}
+                onUpdateFood={updateFood}
               />
             </>
           )}
 
           {activePage === "analytics" && (
-            <Analytics weeklyData={getWeeklyData()} />
+            <Analytics
+              weeklyData={getWeeklyData()}
+              darkMode={darkMode}
+              weightKg={goals.weightKg}
+              heightCm={goals.heightCm}
+              goalWeightKg={goals.goalWeightKg}
+              onUpdateWeight={updateWeight}
+              onUpdateGoalWeight={updateGoalWeight}
+              onUpdateHeight={updateHeight}
+            />
           )}
 
           {activePage === "settings" && (
-            <Settings revenueCat={revenueCat} />
+            <Settings
+              revenueCat={revenueCat}
+              resetOnboarding={resetOnboarding}
+              onClearLocalData={async () => {
+                await clearAllFoods()
+                await resetOnboarding?.()
+              }}
+            />
           )}
         </ScrollView>
 
@@ -161,7 +192,7 @@ function MainApp() {
         )}
 
         {/* Bottom Navigation */}
-        <BottomNav activePage={activePage} onPageChange={setActivePage} />
+        <BottomNav activePage={activePage} onPageChange={setActivePage} darkMode={darkMode} />
       </View>
 
       {/* Camera Modal */}
@@ -181,7 +212,7 @@ function MainApp() {
       >
         <View style={styles.processingOverlay}>
           <View style={styles.processingContainer}>
-            <ActivityIndicator size="large" color="#f97316" />
+            <ActivityIndicator size="large" color="#111827" />
             <Text style={styles.processingText}>Analyzing your food...</Text>
             <Text style={styles.processingSubtext}>This may take a few seconds</Text>
           </View>
@@ -199,6 +230,7 @@ export default function App() {
   }, [])
 
   return (
+    <SafeAreaProvider>
     <SuperwallProvider
       apiKeys={{ android: SUPERWALL_API_KEY, ios: SUPERWALL_API_KEY }}
       options={{
@@ -237,19 +269,26 @@ export default function App() {
           },
         }}
       >
-        <MainApp />
+        <AppContent />
       </CustomPurchaseControllerProvider>
     </SuperwallProvider>
+    </SafeAreaProvider>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#f9fafb",
+  },
+  containerDark: {
     backgroundColor: "#000000",
   },
   mainContainer: {
     flex: 1,
+    backgroundColor: "#f9fafb",
+  },
+  mainContainerDark: {
     backgroundColor: "#000000",
   },
   scrollView: {
@@ -257,51 +296,41 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingBottom: 200,
+    paddingTop: 8,
   },
   pageContainer: {
     paddingVertical: 32,
   },
   processingOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
   processingContainer: {
-    backgroundColor: "#111827",
+    backgroundColor: "#ffffff",
     borderRadius: 16,
     padding: 32,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#374151",
     minWidth: 200,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   processingText: {
-    color: "#ffffff",
+    color: "#111827",
     fontSize: 18,
     fontWeight: "600",
     marginTop: 16,
     textAlign: "center",
   },
   processingSubtext: {
-    color: "#9ca3af",
+    color: "#6b7280",
     fontSize: 14,
     marginTop: 8,
     textAlign: "center",
-  },
-  buyCreditsButton: {
-    marginTop: 16,
-    marginBottom: 20,
-    alignSelf: "center",
-    backgroundColor: "#f97316",
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  buyCreditsButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
   },
 })

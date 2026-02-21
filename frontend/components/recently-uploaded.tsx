@@ -29,16 +29,22 @@ export default function RecentlyUploaded({ foods, onDelete, onUpdate }: Recently
 }
 
   if (foods.length === 0) {
-  return (
+    return (
       <View style={styles.container}>
         <Text style={styles.title}>Recently uploaded</Text>
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No food items yet</Text>
-          <Text style={styles.emptySubtext}>Take a photo to get started!</Text>
+        <View style={styles.emptyCard}>
+          <View style={styles.imagePlaceholder}>
+            <Text style={styles.imageText}>🥗</Text>
+          </View>
+          <View style={styles.placeholderLines}>
+            <View style={styles.placeholderLine} />
+            <View style={styles.placeholderLineShort} />
+          </View>
         </View>
+        <Text style={styles.tapHint}>Tap + to add your first meal of the day</Text>
       </View>
-  )
-}
+    )
+  }
 
   return (
     <View style={styles.container}>
@@ -129,28 +135,65 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#ffffff",
+    color: "#111827",
     marginBottom: 16,
   },
-  foodsList: {
-  },
+  foodsList: {},
   foodCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#111827",
-    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
     padding: 16,
-    borderWidth: 1,
-    borderColor: "#374151",
     marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   imagePlaceholder: {
     width: 64,
     height: 64,
     borderRadius: 8,
-    backgroundColor: "#1f2937",
+    backgroundColor: "#f3f4f6",
     alignItems: "center",
     justifyContent: "center",
+  },
+  emptyCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  placeholderLines: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  placeholderLine: {
+    height: 12,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 4,
+    marginBottom: 8,
+    width: "70%",
+  },
+  placeholderLineShort: {
+    height: 10,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 4,
+    width: "50%",
+  },
+  tapHint: {
+    fontSize: 14,
+    color: "#9ca3af",
+    marginTop: 4,
   },
   imageText: {
     fontSize: 32,
@@ -160,7 +203,7 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   foodName: {
-    color: "#ffffff",
+    color: "#111827",
     fontWeight: "600",
     fontSize: 14,
   },
@@ -183,7 +226,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   caloriesText: {
-    color: "#9ca3af",
+    color: "#6b7280",
     fontSize: 12,
   },
   macrosRow: {
@@ -203,7 +246,7 @@ const styles = StyleSheet.create({
   },
   macroText: {
     fontSize: 12,
-    color: "#9ca3af",
+    color: "#6b7280",
   },
   actionsContainer: {
     alignItems: "flex-end",
@@ -222,7 +265,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#374151",
+    backgroundColor: "#e5e7eb",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -230,28 +273,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#374151",
+    backgroundColor: "#fee2e2",
     alignItems: "center",
     justifyContent: "center",
-  },
-  emptyContainer: {
-    padding: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyText: {
-    color: "#9ca3af",
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    color: "#6b7280",
-    fontSize: 14,
   },
   foodImage: {
     width: 64,
     height: 64,
     borderRadius: 8,
-    backgroundColor: "#1f2937",
+    backgroundColor: "#f3f4f6",
   },
 })

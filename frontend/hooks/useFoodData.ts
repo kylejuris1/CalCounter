@@ -19,6 +19,9 @@ interface DailyTotals {
   protein: number;
   carbs: number;
   fat: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
 }
 
 const STORAGE_KEY = '@calorie_watcher_foods';
@@ -87,6 +90,26 @@ export function useFoodData() {
     return foods.filter(food => food.date === today);
   };
 
+  const getFoodsForDate = (dateStr: string): FoodItem[] => {
+    return foods.filter(food => food.date === dateStr);
+  };
+
+  const getTotalsForDate = (dateStr: string): DailyTotals => {
+    const dayFoods = getFoodsForDate(dateStr);
+    return dayFoods.reduce(
+      (totals, food) => ({
+        calories: totals.calories + food.calories,
+        protein: totals.protein + food.protein,
+        carbs: totals.carbs + food.carbs,
+        fat: totals.fat + food.fat,
+        fiber: (totals.fiber ?? 0) + ((food as any).fiber ?? 0),
+        sugar: (totals.sugar ?? 0) + ((food as any).sugar ?? 0),
+        sodium: (totals.sodium ?? 0) + ((food as any).sodium ?? 0),
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
+    );
+  };
+
   const getTodayTotals = (): DailyTotals => {
     const todayFoods = getTodayFoods();
     return todayFoods.reduce(
@@ -95,8 +118,11 @@ export function useFoodData() {
         protein: totals.protein + food.protein,
         carbs: totals.carbs + food.carbs,
         fat: totals.fat + food.fat,
+        fiber: (totals.fiber ?? 0) + ((food as any).fiber ?? 0),
+        sugar: (totals.sugar ?? 0) + ((food as any).sugar ?? 0),
+        sodium: (totals.sodium ?? 0) + ((food as any).sodium ?? 0),
       }),
-      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+      { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
     );
   };
 
@@ -118,8 +144,11 @@ export function useFoodData() {
           protein: totals.protein + food.protein,
           carbs: totals.carbs + food.carbs,
           fat: totals.fat + food.fat,
+          fiber: (totals.fiber ?? 0) + ((food as any).fiber ?? 0),
+          sugar: (totals.sugar ?? 0) + ((food as any).sugar ?? 0),
+          sodium: (totals.sodium ?? 0) + ((food as any).sodium ?? 0),
         }),
-        { calories: 0, protein: 0, carbs: 0, fat: 0 }
+        { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 }
       );
     }
 
@@ -148,6 +177,8 @@ export function useFoodData() {
     addFood,
     getTodayFoods,
     getTodayTotals,
+    getFoodsForDate,
+    getTotalsForDate,
     getWeeklyData,
     deleteFood,
     updateFood,

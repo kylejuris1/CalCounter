@@ -1,10 +1,12 @@
 // Import API configuration
 import { API_BASE_URL } from '../config/api';
+import type { OnboardingAnswers } from '../hooks/useOnboarding';
+import type { RecommendedGoals } from '../hooks/useOnboarding';
 
 /**
  * Upload image to backend
  */
-export async function uploadImage(uri: string): Promise<string> {
+export async function uploadImage(uri: string, signal?: AbortSignal): Promise<string> {
   const formData = new FormData();
   
   // Extract filename from URI
@@ -33,6 +35,7 @@ export async function uploadImage(uri: string): Promise<string> {
     const response = await fetch(uploadUrl, {
       method: 'POST',
       body: formData,
+      signal,
       // DO NOT set Content-Type header - React Native sets it automatically with boundary
     });
 
@@ -90,7 +93,7 @@ export async function uploadImage(uri: string): Promise<string> {
 /**
  * Analyze food image
  */
-export async function analyzeFood(imageUrl: string) {
+export async function analyzeFood(imageUrl: string, signal?: AbortSignal) {
   const analyzeUrl = `${API_BASE_URL}/api/analyze`;
   
   try {
@@ -106,6 +109,7 @@ export async function analyzeFood(imageUrl: string) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ imageUrl }),
+      signal,
     });
 
     const endTime = Date.now();
@@ -147,22 +151,120 @@ export async function analyzeFood(imageUrl: string) {
   }
 }
 
+/** Timeout for upload+analyze (allows Render cold start ~60s + upload + OpenAI) */
+const UPLOAD_ANALYZE_TIMEOUT_MS = 120000;
+
 /**
- * Upload and analyze food image in one call
+ * Upload and analyze food image in one call.
+ * Uses a single timeout for the whole flow so the app doesn't hang on Render cold start.
  */
-export async function uploadAndAnalyzeFood(uri: string) {
+export async function uploadAndAnalyzeFood(uri: string): Promise<{ data: any }> {
   console.log('=== UPLOAD AND ANALYZE START ===');
   console.log('Image URI:', uri);
-  
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_ANALYZE_TIMEOUT_MS);
+
   try {
-    const imageUrl = await uploadImage(uri);
+    const imageUrl = await uploadImage(uri, controller.signal);
     console.log('Upload successful, proceeding to analysis...');
-    const analysis = await analyzeFood(imageUrl);
+    const analysis = await analyzeFood(imageUrl, controller.signal);
     console.log('=== UPLOAD AND ANALYZE COMPLETE ===');
     return analysis;
   } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      console.error('=== UPLOAD AND ANALYZE TIMEOUT ===');
+      throw new Error(
+        'Request timed out. The server may be waking up—please try again in a moment.'
+      );
+    }
     console.error('=== UPLOAD AND ANALYZE FAILED ===');
     console.error('Failed at step:', error?.message?.includes('upload') ? 'UPLOAD' : 'ANALYSIS');
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Submit onboarding as guest. Creates guest account and saves responses. Returns guestId.
+ */
+export async function submitGuestOnboarding(
+  answers: OnboardingAnswers,
+  goals: RecommendedGoals
+): Promise<{ guestId: string }> {
+  const url = `${API_BASE_URL}/api/guest/onboarding`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      answers,
+      goals: {
+        calorieGoal: goals.calorieGoal,
+        proteinGoal: goals.proteinGoal,
+        carbsGoal: goals.carbsGoal,
+        fatGoal: goals.fatGoal,
+      },
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(err.error || 'Failed to save onboarding');
+  }
+  return response.json();
+}
+
+/**
+ * Link guest account to the current authenticated user (after email OTP). Requires access token.
+ */
+export async function linkGuest(guestId: string, accessToken: string): Promise<void> {
+  const url = `${API_BASE_URL}/api/auth/link-guest`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ guestId }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(err.error || 'Failed to link account');
+  }
+}
+
+/**
+ * Ensure an app_users row exists for the authenticated user (e.g. signed in without prior guest).
+ */
+export async function ensureAppUser(accessToken: string): Promise<void> {
+  const url = `${API_BASE_URL}/api/auth/ensure-app-user`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(err.error || 'Failed to ensure app user');
+  }
+}
+
+/**
+ * Delete account data for the authenticated user. Requires valid session.
+ */
+export async function deleteAccount(accessToken: string): Promise<void> {
+  const url = `${API_BASE_URL}/api/auth/delete-account`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(err.error || 'Failed to delete account');
   }
 }

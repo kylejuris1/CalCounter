@@ -1,9 +1,11 @@
 import { View, Text, Pressable, StyleSheet } from "react-native"
-import Svg, { Path, Circle, Line } from "react-native-svg"
+import Svg, { Path, Circle, Rect } from "react-native-svg"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 interface BottomNavProps {
   activePage: string
   onPageChange: (page: string) => void
+  darkMode?: boolean
 }
 
 function HomeIcon({ color }: { color: string }) {
@@ -15,12 +17,12 @@ function HomeIcon({ color }: { color: string }) {
   )
 }
 
-function AnalyticsIcon({ color }: { color: string }) {
+function ProgressIcon({ color }: { color: string }) {
   return (
-    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
-      <Line x1="12" y1="2" x2="12" y2="22" />
-      <Line x1="4" y1="18" x2="4" y2="12" />
-      <Line x1="20" y1="12" x2="20" y2="18" />
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Rect x="3" y="12" width="4" height="9" rx="1" />
+      <Rect x="10" y="8" width="4" height="13" rx="1" />
+      <Rect x="17" y="4" width="4" height="17" rx="1" />
     </Svg>
   )
 }
@@ -34,29 +36,35 @@ function SettingsIcon({ color }: { color: string }) {
   )
 }
 
-export default function BottomNav({ activePage, onPageChange }: BottomNavProps) {
+export default function BottomNav({ activePage, onPageChange, darkMode = false }: BottomNavProps) {
+  const insets = useSafeAreaInsets()
   const pages = [
     { id: "home", label: "Home", icon: HomeIcon },
-    { id: "analytics", label: "Analytics", icon: AnalyticsIcon },
+    { id: "analytics", label: "Progress", icon: ProgressIcon },
     { id: "settings", label: "Settings", icon: SettingsIcon },
   ]
+  const c = darkMode ? darkStyles : styles
+  const iconColorActive = darkMode ? "#ffffff" : "#111827"
+  const iconColorInactive = darkMode ? "#9ca3af" : "#6b7280"
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
+    <View style={[c.container, { paddingBottom: insets.bottom }]}>
+      <View style={c.content}>
         {pages.map((page) => {
           const IconComponent = page.icon
           const isActive = activePage === page.id
-          const iconColor = isActive ? "#ffffff" : "#6b7280"
+          const iconColor = isActive ? iconColorActive : iconColorInactive
 
           return (
             <Pressable
-            key={page.id}
+              key={page.id}
               onPress={() => onPageChange(page.id)}
-              style={styles.tab}
+              style={c.tab}
             >
-              <IconComponent color={iconColor} />
-              <Text style={[styles.label, isActive && styles.activeLabel]}>
+              <View style={[c.iconWrap, isActive && c.iconWrapActive]}>
+                <IconComponent color={iconColor} />
+              </View>
+              <Text style={[c.label, isActive && c.activeLabel]}>
                 {page.label}
               </Text>
             </Pressable>
@@ -73,15 +81,15 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#000000",
+    backgroundColor: "#ffffff",
     borderTopWidth: 1,
-    borderTopColor: "#1f2937",
+    borderTopColor: "#e5e7eb",
   },
   content: {
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    height: 80,
+    height: 72,
     width: "100%",
   },
   tab: {
@@ -91,10 +99,65 @@ const styles = StyleSheet.create({
     flex: 1,
     height: "100%",
   },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconWrapActive: {
+    backgroundColor: "#e5e7eb",
+  },
   label: {
     fontSize: 12,
     fontWeight: "500",
     color: "#6b7280",
+    marginTop: 4,
+  },
+  activeLabel: {
+    color: "#111827",
+  },
+})
+
+const darkStyles = StyleSheet.create({
+  container: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#000000",
+    borderTopWidth: 1,
+    borderTopColor: "#1f2937",
+  },
+  content: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    height: 72,
+    width: "100%",
+  },
+  tab: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+    height: "100%",
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconWrapActive: {
+    backgroundColor: "#374151",
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#9ca3af",
     marginTop: 4,
   },
   activeLabel: {
