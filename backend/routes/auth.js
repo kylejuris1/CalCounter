@@ -5,6 +5,8 @@ import { supabaseAdmin } from '../services/supabaseAdmin.js';
  * Body: { guestId: string (uuid) }
  * Requires: Authorization Bearer <supabase JWT>
  * Links the guest to the authenticated user: sets app_users.auth_user_id = req.user.id where id = guestId.
+ * If the OTP trigger already created an app_users row for this auth user (id = auth_user_id), we delete
+ * that row first so the unique constraint on auth_user_id is not violated when we link the guest row.
  */
 export async function linkGuest(req, res) {
   try {
@@ -28,6 +30,13 @@ export async function linkGuest(req, res) {
     if (existing.auth_user_id != null) {
       return res.status(400).json({ error: 'This guest account is already linked' });
     }
+
+    // Remove the app_users row created by the OTP trigger (id = auth_user_id) so we don't violate
+    // unique(auth_user_id) when linking the guest row. That row has no health_goals/onboarding_responses.
+    await supabaseAdmin
+      .from('app_users')
+      .delete()
+      .eq('id', authUserId);
 
     const authEmail = req.user.email ?? null;
     const { error: updateError } = await supabaseAdmin
