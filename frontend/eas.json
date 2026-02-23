@@ -6,16 +6,17 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": { "cache": { "key": "ios-pods-v2" } }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": { "cache": { "key": "ios-pods-v2" } }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": { "cache": { "key": "ios-pods-v2" } }
     }
   },
-  "submit": {
-    "production": {}
-  }
+  "submit": { "production": {} }
 }

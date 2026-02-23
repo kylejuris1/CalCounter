@@ -19,3 +19,35 @@ export async function requestNotificationPermission(): Promise<boolean> {
     return false
   }
 }
+
+/**
+ * Schedule daily free-trial reminder notifications for the next N days.
+ * Returns true if scheduling succeeded, false otherwise.
+ */
+export async function scheduleFreeTrialReminders(days: number = 3): Promise<boolean> {
+  try {
+    const granted = await requestNotificationPermission()
+    if (!granted) return false
+
+    const Notifications = await import("expo-notifications")
+    const now = Date.now()
+    const dayMs = 24 * 60 * 60 * 1000
+
+    for (let i = 1; i <= days; i += 1) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "CalCounter Reminder",
+          body: "Your free trial is active. Keep tracking today and review your subscription before trial end.",
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: new Date(now + i * dayMs),
+        },
+      })
+    }
+    return true
+  } catch (e) {
+    console.warn("[notifications] Failed to schedule trial reminders", e)
+    return false
+  }
+}

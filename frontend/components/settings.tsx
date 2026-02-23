@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { View, Text, ScrollView, StyleSheet, Pressable, Switch, Alert } from "react-native"
+import { View, Text, ScrollView, StyleSheet, Pressable, Switch, Alert, Modal } from "react-native"
 import { useGoals } from "../hooks/useGoals"
 import { useTheme } from "../hooks/useTheme"
 import { useSupabaseAuth } from "../hooks/useSupabaseAuth"
@@ -26,6 +26,8 @@ export default function Settings({ revenueCat, resetOnboarding, onClearLocalData
   const [macroModalVisible, setMacroModalVisible] = useState(false)
   const [signInModalVisible, setSignInModalVisible] = useState(false)
   const [clearDataModalVisible, setClearDataModalVisible] = useState(false)
+  const [privacyModalVisible, setPrivacyModalVisible] = useState(false)
+  const [termsModalVisible, setTermsModalVisible] = useState(false)
 
   const isLight = !darkModeEnabled
   const theme = isLight ? lightTheme : darkTheme
@@ -132,8 +134,8 @@ export default function Settings({ revenueCat, resetOnboarding, onClearLocalData
           onPress={() => setMacroModalVisible(true)}
         >
           <Text style={[styles.settingLabel, { color: theme.text }]}>Macro Targets</Text>
-          <Text style={[styles.settingValue, { color: theme.muted }]}>
-            P: {goals.proteinGoal}g | C: {goals.carbsGoal}g | F: {goals.fatGoal}g
+          <Text style={[styles.settingValueSmall, { color: theme.muted }]} numberOfLines={1}>
+            P: {goals.proteinGoal}g C: {goals.carbsGoal}g F: {goals.fatGoal}g
           </Text>
         </Pressable>
       </View>
@@ -192,11 +194,17 @@ export default function Settings({ revenueCat, resetOnboarding, onClearLocalData
           <Text style={[styles.settingLabel, { color: theme.text }]}>Version</Text>
           <Text style={[styles.settingValue, { color: theme.muted }]}>1.0.0</Text>
         </View>
-        <Pressable style={[styles.settingItem, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
+        <Pressable
+          style={[styles.settingItem, { backgroundColor: theme.cardBg, borderColor: theme.border }]}
+          onPress={() => setPrivacyModalVisible(true)}
+        >
           <Text style={[styles.settingLabel, { color: theme.text }]}>Privacy Policy</Text>
           <Text style={[styles.settingValue, { color: theme.muted }]}>→</Text>
         </Pressable>
-        <Pressable style={[styles.settingItem, { backgroundColor: theme.cardBg, borderColor: theme.border }]}>
+        <Pressable
+          style={[styles.settingItem, { backgroundColor: theme.cardBg, borderColor: theme.border }]}
+          onPress={() => setTermsModalVisible(true)}
+        >
           <Text style={[styles.settingLabel, { color: theme.text }]}>Terms of Service</Text>
           <Text style={[styles.settingValue, { color: theme.muted }]}>→</Text>
         </Pressable>
@@ -239,6 +247,40 @@ export default function Settings({ revenueCat, resetOnboarding, onClearLocalData
         onVerify={handleVerifyClearData}
         light={isLight}
       />
+
+      <Modal visible={privacyModalVisible} transparent animationType="fade">
+        <View style={styles.docModalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPrivacyModalVisible(false)} />
+          <View style={[styles.docModalCard, { backgroundColor: theme.cardBg }]}>
+            <ScrollView style={styles.docScroll} contentContainerStyle={styles.docScrollContent}>
+              <Text style={[styles.docTitle, { color: theme.text }]}>Privacy Policy</Text>
+              <Text style={[styles.docBody, { color: theme.text }]}>
+                CalCounter ("we", "our") collects and uses your data to provide the calorie tracking and nutrition services. We store your food entries, goals, and account information on our servers when you sign in. We use your email only for authentication and account recovery. We do not sell your personal data. You can delete your account and data at any time from Settings. For questions, contact us at the support email provided in the app.
+              </Text>
+            </ScrollView>
+            <Pressable style={[styles.docCloseBtn, { borderColor: theme.border }]} onPress={() => setPrivacyModalVisible(false)}>
+              <Text style={[styles.docCloseText, { color: theme.text }]}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={termsModalVisible} transparent animationType="fade">
+        <View style={styles.docModalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setTermsModalVisible(false)} />
+          <View style={[styles.docModalCard, { backgroundColor: theme.cardBg }]}>
+            <ScrollView style={styles.docScroll} contentContainerStyle={styles.docScrollContent}>
+              <Text style={[styles.docTitle, { color: theme.text }]}>Terms of Service</Text>
+              <Text style={[styles.docBody, { color: theme.text }]}>
+                By using CalCounter you agree to use the service for personal, non-commercial calorie and nutrition tracking. You are responsible for the accuracy of data you enter. We provide the service "as is" and are not liable for any health or dietary outcomes. We may update these terms; continued use after changes constitutes acceptance. You may stop using the service and delete your account at any time.
+              </Text>
+            </ScrollView>
+            <Pressable style={[styles.docCloseBtn, { borderColor: theme.border }]} onPress={() => setTermsModalVisible(false)}>
+              <Text style={[styles.docCloseText, { color: theme.text }]}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   )
 }
@@ -306,6 +348,46 @@ const styles = StyleSheet.create({
   },
   settingValue: {
     fontSize: 16,
+  },
+  settingValueSmall: {
+    fontSize: 13,
+    flexShrink: 1,
+    maxWidth: "55%",
+  },
+  docModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  docModalCard: {
+    borderRadius: 16,
+    padding: 20,
+    maxWidth: 400,
+    width: "100%",
+    maxHeight: "80%",
+  },
+  docScroll: { maxHeight: 400 },
+  docScrollContent: { paddingBottom: 16 },
+  docTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 16,
+  },
+  docBody: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  docCloseBtn: {
+    marginTop: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderTopWidth: 1,
+  },
+  docCloseText: {
+    fontSize: 16,
+    fontWeight: "600",
   },
   dangerText: {
     color: "#ef4444",

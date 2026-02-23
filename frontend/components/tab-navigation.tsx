@@ -5,8 +5,10 @@ import Svg, { Circle } from "react-native-svg"
 const SCREEN_WIDTH = Dimensions.get("window").width
 const HORIZONTAL_PADDING = 32
 const PAGE_WIDTH = SCREEN_WIDTH - HORIZONTAL_PADDING
+const PAGE_PADDING = 16
+const CONTENT_WIDTH = PAGE_WIDTH - PAGE_PADDING * 2
 const GAP = 6
-const SIZE = Math.floor((PAGE_WIDTH - 6 * GAP) / 7)
+const SIZE = Math.floor((CONTENT_WIDTH - 6 * GAP) / 7)
 const STROKE = 3
 const RADIUS = Math.max(0, (SIZE - STROKE) / 2)
 const CX = SIZE / 2
@@ -73,16 +75,12 @@ export default function TabNavigation({
         isScrollingRef.current = true
         setWeekOffset((prev) => prev - 1)
         scrollRef.current?.scrollTo({ x: PAGE_WIDTH, animated: false })
-        setTimeout(() => {
-          isScrollingRef.current = false
-        }, 100)
+        setTimeout(() => { isScrollingRef.current = false }, 100)
       } else if (x > PAGE_WIDTH * 1.7) {
         isScrollingRef.current = true
         setWeekOffset((prev) => prev + 1)
         scrollRef.current?.scrollTo({ x: PAGE_WIDTH, animated: false })
-        setTimeout(() => {
-          isScrollingRef.current = false
-        }, 100)
+        setTimeout(() => { isScrollingRef.current = false }, 100)
       }
     },
     []
@@ -229,7 +227,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   weekPage: {
-    paddingHorizontal: 16,
+    paddingHorizontal: PAGE_PADDING,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -238,7 +236,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: GAP,
-    width: "100%",
+    width: CONTENT_WIDTH,
+    maxWidth: "100%",
   },
   dayPill: {
     width: SIZE,

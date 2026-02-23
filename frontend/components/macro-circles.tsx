@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from "react-native"
-import Svg, { Circle, Path } from "react-native-svg"
+import Svg, { Circle } from "react-native-svg"
 
 interface MacroCirclesProps {
   totals: {
@@ -53,30 +53,6 @@ export default function MacroCircles({ totals, macroGoals }: MacroCirclesProps) 
     }
   })
 
-  const MacroIcon = ({ type }: { type: "protein" | "carbs" | "fat" }) => {
-    const color = type === "protein" ? "#ef4444" : type === "carbs" ? "#f97316" : "#3b82f6"
-    if (type === "protein") {
-      return (
-        <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <Path d="M8 6c0-1.5 1.5-3 4-3s4 1.5 4 3v4c0 1.5-1.5 3-4 3s-4-1.5-4-3V6z" />
-          <Path d="M12 10v10M9 14h6" />
-        </Svg>
-      )
-    }
-    if (type === "carbs") {
-      return (
-        <Svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <Path d="M8 4v16M12 6v12M16 4v16M5 8h14M5 16h14" />
-        </Svg>
-      )
-    }
-    return (
-      <Svg width={28} height={28} viewBox="0 0 24 24" fill="#93c5fd" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <Path d="M12 2.69c-1.5 2.12-4 5.31-4 8a4 4 0 1 0 8 0c0-2.69-2.5-5.88-4-8z" />
-      </Svg>
-    )
-  }
-
   return (
     <View style={styles.card}>
       <View style={styles.container}>
@@ -84,7 +60,6 @@ export default function MacroCircles({ totals, macroGoals }: MacroCirclesProps) 
           const circumference = 2 * Math.PI * 32
           const strokeDasharray = `${(macro.percentage / 100) * circumference} ${circumference}`
           const isLast = index === macros.length - 1
-          const iconType = macro.label === "Protein" ? "protein" : macro.label === "Carbs" ? "carbs" : "fat"
 
           return (
             <View key={index} style={[styles.macroItem, isLast && styles.lastMacroItem]}>
@@ -102,9 +77,6 @@ export default function MacroCircles({ totals, macroGoals }: MacroCirclesProps) 
                     strokeLinecap="round"
                   />
                 </Svg>
-                <View style={styles.circleIconOverlay}>
-                  <MacroIcon type={iconType} />
-                </View>
               </View>
               <Text style={styles.value}>
                 {macro.displayValue}
@@ -145,16 +117,8 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     marginBottom: 12,
-    position: "relative",
     alignItems: "center",
     justifyContent: "center",
-  },
-  circleIconOverlay: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-    width: 80,
-    height: 80,
   },
   value: {
     color: "#111827",

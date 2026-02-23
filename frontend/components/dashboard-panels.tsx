@@ -28,6 +28,10 @@ interface DashboardPanelsProps {
   foods: FoodItem[]
   onDeleteFood: (id: string) => void
   onUpdateFood: (food: FoodItem) => void
+  darkMode?: boolean
+  addBurnedCaloriesToGoal?: boolean
+  caloriesBurned?: number
+  onCaloriesBurnedChange?: (value: number) => void
 }
 
 export default function DashboardPanels({
@@ -38,6 +42,10 @@ export default function DashboardPanels({
   foods,
   onDeleteFood,
   onUpdateFood,
+  darkMode = false,
+  addBurnedCaloriesToGoal,
+  caloriesBurned = 0,
+  onCaloriesBurnedChange,
 }: DashboardPanelsProps) {
   const [panelIndex, setPanelIndex] = useState(0)
   const scrollRef = useRef<ScrollView>(null)
@@ -64,7 +72,14 @@ export default function DashboardPanels({
       >
         {/* Panel 1: Calories + Macros */}
         <View style={[styles.panel, { width: PANEL_WIDTH }]}>
-          <CalorieOverview totals={totals} calorieGoal={calorieGoal} />
+          <CalorieOverview
+            totals={totals}
+            calorieGoal={calorieGoal}
+            darkMode={darkMode}
+            addBurnedCaloriesToGoal={addBurnedCaloriesToGoal}
+            caloriesBurned={caloriesBurned}
+            onCaloriesBurnedChange={onCaloriesBurnedChange}
+          />
           <MacroCircles totals={totals} macroGoals={macroGoals} />
         </View>
 

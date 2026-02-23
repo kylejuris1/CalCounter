@@ -30,7 +30,16 @@ export async function submitGuestOnboarding(req, res) {
       referralCode,
     } = answers;
 
-    const { calorieGoal, proteinGoal, carbsGoal, fatGoal } = goals;
+    const {
+      calorieGoal,
+      proteinGoal,
+      carbsGoal,
+      fatGoal,
+      fiberGoal,
+      sugarGoal,
+      sodiumGoal,
+      waterGoalMl,
+    } = goals;
 
     const { data: appUser, error: insertUserError } = await supabaseAdmin
       .from('app_users')
@@ -77,6 +86,35 @@ export async function submitGuestOnboarding(req, res) {
       console.error('[Guest] onboarding_responses insert error', insertOnboardingError);
       await supabaseAdmin.from('app_users').delete().eq('id', userId);
       return res.status(500).json({ error: 'Failed to save onboarding responses' });
+    }
+
+    // Insert into health_goals (schema: user_id, calorie_goal, protein_grams, fat_grams, carbs_grams, fiber_grams, sugar_grams, sodium_mg, water_liters)
+    const calorie_goal = calorieGoal != null ? Number(calorieGoal) : 2000;
+    const protein_grams = proteinGoal != null ? Number(proteinGoal) : 150;
+    const fat_grams = fatGoal != null ? Number(fatGoal) : 65;
+    const carbs_grams = carbsGoal != null ? Number(carbsGoal) : 200;
+    const fiber_grams = fiberGoal != null ? Number(fiberGoal) : 38;
+    const sugar_grams = sugarGoal != null ? Number(sugarGoal) : 50;
+    const sodium_mg = sodiumGoal != null ? Number(sodiumGoal) : 2300;
+    const water_liters = waterGoalMl != null ? Number(waterGoalMl) / 1000 : 2.5;
+
+    const { error: healthGoalsError } = await supabaseAdmin.from('health_goals').insert({
+      user_id: userId,
+      calorie_goal,
+      protein_grams,
+      fat_grams,
+      carbs_grams,
+      fiber_grams,
+      sugar_grams,
+      sodium_mg,
+      water_liters,
+    });
+
+    if (healthGoalsError) {
+      console.error('[Guest] health_goals insert error', healthGoalsError);
+      await supabaseAdmin.from('onboarding_responses').delete().eq('user_id', userId);
+      await supabaseAdmin.from('app_users').delete().eq('id', userId);
+      return res.status(500).json({ error: 'Failed to save health goals' });
     }
 
     return res.status(201).json({ guestId: userId });

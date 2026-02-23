@@ -204,6 +204,10 @@ export async function submitGuestOnboarding(
         proteinGoal: goals.proteinGoal,
         carbsGoal: goals.carbsGoal,
         fatGoal: goals.fatGoal,
+        fiberGoal: goals.fiberGoal ?? undefined,
+        sugarGoal: goals.sugarGoal ?? undefined,
+        sodiumGoal: goals.sodiumGoal ?? undefined,
+        waterGoalMl: goals.waterGoalMl ?? undefined,
       },
     }),
   });

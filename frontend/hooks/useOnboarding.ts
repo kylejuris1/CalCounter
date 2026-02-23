@@ -41,6 +41,10 @@ export interface RecommendedGoals {
   proteinGoal: number;
   carbsGoal: number;
   fatGoal: number;
+  sodiumGoal?: number;
+  fiberGoal?: number;
+  sugarGoal?: number;
+  waterGoalMl?: number;
 }
 
 const GOALS_STORAGE_KEY = '@calorie_watcher_goals';
@@ -50,7 +54,7 @@ const GOALS_STORAGE_KEY = '@calorie_watcher_goals';
  * Uses Mifflin-St Jeor BMR, activity factor, goal-based adjustment, and diet-based macro split.
  */
 export function computeRecommendations(answers: OnboardingAnswers): RecommendedGoals {
-  const { weightKg, heightCm, birthDate, gender, diet, goal, accomplish } = answers;
+  const { weightKg, heightCm, birthDate, gender, diet, goal, accomplish, weightLossSpeedPerWeek } = answers;
   const hasBodyInputs = typeof weightKg === 'number' && typeof heightCm === 'number' && birthDate && gender;
 
   let bmr = 1600; // fallback
@@ -67,11 +71,14 @@ export function computeRecommendations(answers: OnboardingAnswers): RecommendedG
   const activityFactor = 1.375; // light-moderate
   let tdee = bmr * activityFactor;
 
-  // Goal (lose/maintain/gain) adjustment
+  // Goal (lose/maintain/gain): adjust calories so the plan matches the user's aim
+  // ~500 kcal/day deficit per 1 lb/week loss; similar surplus for gain
+  const speed = typeof weightLossSpeedPerWeek === 'number' && weightLossSpeedPerWeek > 0 ? weightLossSpeedPerWeek : 1;
+  const dailyDelta = Math.round(speed * 500); // 500 cal/day per 1 lb/week
   if (goal === 'lose') {
-    tdee -= 300;
+    tdee -= dailyDelta;
   } else if (goal === 'gain') {
-    tdee += 300;
+    tdee += dailyDelta;
   }
   // Accomplish-based tweak
   if (accomplish === 'feel_better_body') {
@@ -93,16 +100,62 @@ export function computeRecommendations(answers: OnboardingAnswers): RecommendedG
   const fatKcal = remainingKcal - carbsGoal * 4;
   const fatGoal = Math.round(Math.max(30, Math.min(120, fatKcal / 9)));
 
+  // Sodium: ~2300 mg default, scale slightly by calories
+  const sodiumGoal = Math.round(2000 + (calorieGoal - 2000) * 0.05);
+  // Fiber: 14g per 1000 kcal
+  const fiberGoal = Math.round(Math.max(25, Math.min(45, (calorieGoal / 1000) * 14)));
+  // Sugar: ~10% of calories from sugar, ~4 kcal/g
+  const sugarGoal = Math.round(Math.max(30, Math.min(80, (calorieGoal * 0.1) / 4)));
+  // Water: ~35 ml per kg body weight, or ~2.5 L default
+  const waterGoalMl = hasBodyInputs && weightKg ? Math.round(weightKg * 35) : 2500;
+
   return {
     calorieGoal,
     proteinGoal,
     carbsGoal,
     fatGoal,
+    sodiumGoal: Math.max(1500, Math.min(3500, sodiumGoal)),
+    fiberGoal,
+    sugarGoal,
+    waterGoalMl,
   };
 }
 
-export async function saveOnboardingGoals(goals: RecommendedGoals): Promise<void> {
-  await AsyncStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(goals));
+export async function saveOnboardingGoals(plan: RecommendedGoals): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(GOALS_STORAGE_KEY);
+    const existing = raw ? JSON.parse(raw) : {};
+    const merged = { ...existing, ...plan };
+    await AsyncStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(merged));
+  } catch (e) {
+    console.error('[Onboarding] saveOnboardingGoals failed', e);
+    await AsyncStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(plan));
+  }
+}
+
+/** Merge onboarding weight/height/goal weight into stored goals so Progress tab shows them. */
+export async function saveOnboardingBodyToGoals(answers: OnboardingAnswers): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(GOALS_STORAGE_KEY);
+    const goals = raw ? JSON.parse(raw) : {};
+    const goalWeightKg =
+      answers.desiredWeight != null
+        ? (answers.desiredWeightUnit === 'lbs'
+            ? answers.desiredWeight * 0.453592
+            : answers.desiredWeight)
+        : undefined;
+    const next = {
+      ...goals,
+      ...(answers.weightKg != null && { weightKg: answers.weightKg }),
+      ...(answers.heightCm != null && { heightCm: answers.heightCm }),
+      ...(goalWeightKg != null && { goalWeightKg }),
+      ...(answers.addBurnedCaloriesToGoal != null && { addBurnedCaloriesToGoal: answers.addBurnedCaloriesToGoal }),
+      ...(answers.rolloverCalories != null && { rolloverCalories: answers.rolloverCalories }),
+    };
+    await AsyncStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(next));
+  } catch (e) {
+    console.error('[Onboarding] saveOnboardingBodyToGoals failed', e);
+  }
 }
 
 export function useOnboarding() {

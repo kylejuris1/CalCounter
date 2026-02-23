@@ -24,6 +24,7 @@ interface AnalyticsProps {
   onUpdateWeight?: (kg: number) => Promise<void>
   onUpdateGoalWeight?: (kg: number) => Promise<void>
   onUpdateHeight?: (cm: number) => Promise<void>
+  onUpdateBodyMetrics?: (updates: { weightKg?: number; goalWeightKg?: number; heightCm?: number }) => Promise<void>
 }
 
 /** Days until next Sunday (0 if today is Sunday). */
@@ -42,6 +43,7 @@ export default function Analytics({
   onUpdateWeight,
   onUpdateGoalWeight,
   onUpdateHeight,
+  onUpdateBodyMetrics,
 }: AnalyticsProps) {
   const screenWidth = Dimensions.get("window").width
   const s = darkMode ? styles : lightStyles
@@ -132,9 +134,17 @@ export default function Analytics({
       Alert.alert("Invalid", "Enter a valid goal weight (kg).")
       return
     }
-    await onUpdateWeight?.(cw)
-    await onUpdateGoalWeight?.(gw)
-    if (!isNaN(h) && h > 0) await onUpdateHeight?.(h)
+    if (onUpdateBodyMetrics) {
+      await onUpdateBodyMetrics({
+        weightKg: cw,
+        goalWeightKg: gw,
+        ...(Number.isFinite(h) && h > 0 ? { heightCm: h } : {}),
+      })
+    } else {
+      await onUpdateWeight?.(cw)
+      await onUpdateGoalWeight?.(gw)
+      if (!isNaN(h) && h > 0) await onUpdateHeight?.(h)
+    }
     setWeightModalVisible(false)
   }
 
@@ -356,6 +366,7 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   chartWrapper: {
     width: "100%",
@@ -570,6 +581,7 @@ const lightStyles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,

@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   Switch,
+  Image,
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
@@ -19,6 +20,7 @@ import {
   useOnboarding,
   computeRecommendations,
   saveOnboardingGoals,
+  saveOnboardingBodyToGoals,
   type DietType,
   type GoalType,
   type GoalChoiceType,
@@ -92,45 +94,62 @@ function WheelPicker({
   style?: object
 }) {
   const scrollRef = React.useRef<ScrollView>(null)
+  const isProgrammaticScroll = React.useRef(false)
   const selectedIndex = Math.max(
     0,
     items.findIndex((i) => i.value === selectedValue)
   )
   const centerOffset = WHEEL_VISIBLE_HEIGHT / 2 - WHEEL_ITEM_HEIGHT / 2
+  const maxScrollY = Math.max(0, 2 * centerOffset + items.length * WHEEL_ITEM_HEIGHT - WHEEL_VISIBLE_HEIGHT)
 
   useEffect(() => {
-    const y = Math.max(0, selectedIndex * WHEEL_ITEM_HEIGHT - centerOffset)
+    const y = Math.max(0, Math.min(selectedIndex * WHEEL_ITEM_HEIGHT, maxScrollY))
+    isProgrammaticScroll.current = true
     const t = setTimeout(() => {
       scrollRef.current?.scrollTo({ y, animated: false })
+      setTimeout(() => {
+        isProgrammaticScroll.current = false
+      }, 100)
     }, 50)
     return () => clearTimeout(t)
-  }, [selectedIndex, centerOffset])
+  }, [selectedIndex, maxScrollY])
 
-  const handleMomentumScrollEnd = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = e.nativeEvent.contentOffset.y
-      const index = Math.round((y + centerOffset) / WHEEL_ITEM_HEIGHT)
-      const clamped = Math.max(0, Math.min(index, items.length - 1))
-      const snapY = Math.max(0, clamped * WHEEL_ITEM_HEIGHT - centerOffset)
-      scrollRef.current?.scrollTo({ y: snapY, animated: true })
-      if (items[clamped].value !== selectedValue) onValueChange(items[clamped].value)
+  const pendingValueRef = React.useRef<number | null>(null)
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const emitValue = useCallback(
+    (value: number) => {
+      if (value !== selectedValue) onValueChange(value)
     },
-    [items, selectedValue, onValueChange, centerOffset]
+    [selectedValue, onValueChange]
   )
 
-  const snapOffsets = items.map((_, i) => Math.max(0, i * WHEEL_ITEM_HEIGHT - centerOffset))
-
-  const handleScrollEndDrag = useCallback(
+  const handleScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (isProgrammaticScroll.current) return
       const y = e.nativeEvent.contentOffset.y
-      const index = Math.round((y + centerOffset) / WHEEL_ITEM_HEIGHT)
+      const index = Math.round(y / WHEEL_ITEM_HEIGHT)
       const clamped = Math.max(0, Math.min(index, items.length - 1))
-      const snapY = Math.max(0, clamped * WHEEL_ITEM_HEIGHT - centerOffset)
+      const value = items[clamped].value
+      const snapY = Math.max(0, Math.min(clamped * WHEEL_ITEM_HEIGHT, maxScrollY))
       scrollRef.current?.scrollTo({ y: snapY, animated: true })
-      if (items[clamped].value !== selectedValue) onValueChange(items[clamped].value)
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      pendingValueRef.current = value
+      debounceRef.current = setTimeout(() => {
+        if (pendingValueRef.current != null) {
+          emitValue(pendingValueRef.current)
+          pendingValueRef.current = null
+        }
+        debounceRef.current = null
+      }, 150)
     },
-    [items, selectedValue, onValueChange, centerOffset]
+    [items, maxScrollY, emitValue]
   )
+
+  const handleMomentumScrollEnd = handleScrollEnd
+  const handleScrollEndDrag = handleScrollEnd
+
+  const snapOffsets = items.map((_, i) => Math.min(i * WHEEL_ITEM_HEIGHT, maxScrollY))
 
   return (
     <View style={[styles.wheelWrap, style]} collapsable={false}>
@@ -174,6 +193,7 @@ function HorizontalWheelPicker({
   style?: object
 }) {
   const scrollRef = React.useRef<ScrollView>(null)
+  const isProgrammaticScroll = React.useRef(false)
   const selectedIndex = Math.max(
     0,
     items.findIndex((i) => i.value === selectedValue)
@@ -182,35 +202,50 @@ function HorizontalWheelPicker({
 
   useEffect(() => {
     const x = Math.max(0, selectedIndex * HORIZONTAL_WHEEL_ITEM_WIDTH - centerOffset)
+    isProgrammaticScroll.current = true
     const t = setTimeout(() => {
       scrollRef.current?.scrollTo({ x, animated: false })
+      setTimeout(() => {
+        isProgrammaticScroll.current = false
+      }, 100)
     }, 50)
     return () => clearTimeout(t)
   }, [selectedIndex, centerOffset])
 
-  const handleMomentumScrollEnd = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const x = e.nativeEvent.contentOffset.x
-      const index = Math.round((x + centerOffset) / HORIZONTAL_WHEEL_ITEM_WIDTH)
-      const clamped = Math.max(0, Math.min(index, items.length - 1))
-      const snapX = Math.max(0, clamped * HORIZONTAL_WHEEL_ITEM_WIDTH - centerOffset)
-      scrollRef.current?.scrollTo({ x: snapX, animated: true })
-      if (items[clamped].value !== selectedValue) onValueChange(items[clamped].value)
+  const pendingValueRef = React.useRef<number | null>(null)
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const emitValue = useCallback(
+    (value: number) => {
+      if (value !== selectedValue) onValueChange(value)
     },
-    [items, selectedValue, onValueChange, centerOffset]
+    [selectedValue, onValueChange]
   )
 
-  const handleScrollEndDrag = useCallback(
+  const handleScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (isProgrammaticScroll.current) return
       const x = e.nativeEvent.contentOffset.x
       const index = Math.round((x + centerOffset) / HORIZONTAL_WHEEL_ITEM_WIDTH)
       const clamped = Math.max(0, Math.min(index, items.length - 1))
+      const value = items[clamped].value
       const snapX = Math.max(0, clamped * HORIZONTAL_WHEEL_ITEM_WIDTH - centerOffset)
       scrollRef.current?.scrollTo({ x: snapX, animated: true })
-      if (items[clamped].value !== selectedValue) onValueChange(items[clamped].value)
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      pendingValueRef.current = value
+      debounceRef.current = setTimeout(() => {
+        if (pendingValueRef.current != null) {
+          emitValue(pendingValueRef.current)
+          pendingValueRef.current = null
+        }
+        debounceRef.current = null
+      }, 150)
     },
-    [items, selectedValue, onValueChange, centerOffset]
+    [items, centerOffset, emitValue]
   )
+
+  const handleMomentumScrollEnd = handleScrollEnd
+  const handleScrollEndDrag = handleScrollEnd
 
   const snapOffsets = items.map((_, i) => Math.max(0, i * HORIZONTAL_WHEEL_ITEM_WIDTH - centerOffset))
 
@@ -268,7 +303,48 @@ export default function OnboardingFlow({ onComplete, onBackToLanding }: Onboardi
   const [birthYear, setBirthYear] = useState(30)
   const [desiredWeightSlider, setDesiredWeightSlider] = useState(answers.desiredWeight ?? 150)
   const [isLoadingPlan, setIsLoadingPlan] = useState(false)
+  const step5SyncedRef = React.useRef(false)
+  const step8SyncedRef = React.useRef(false)
   const { registerPlacement } = usePlacement()
+
+  useEffect(() => {
+    if (step !== 5) {
+      step5SyncedRef.current = false
+      return
+    }
+    if (step5SyncedRef.current) return
+    step5SyncedRef.current = true
+    if (answers.weightKg != null) {
+      setWeightLbs(Math.round(answers.weightKg * 2.20462))
+      setLocalWeightKg(answers.weightKg)
+    }
+    if (answers.heightCm != null) {
+      const totalInches = answers.heightCm / 2.54
+      const feet = Math.floor(totalInches / 12)
+      const inches = Math.round(totalInches - feet * 12)
+      const clampedFeet = Math.max(3, Math.min(8, feet))
+      const clampedInches = Math.max(0, Math.min(11, inches))
+      setHeightFeet(clampedFeet)
+      setHeightInches(clampedInches)
+      setLocalHeightCm(answers.heightCm)
+    }
+  }, [step, answers.weightKg, answers.heightCm])
+
+  useEffect(() => {
+    if (step !== 8) {
+      step8SyncedRef.current = false
+      return
+    }
+    if (step8SyncedRef.current) return
+    step8SyncedRef.current = true
+    if (answers.desiredWeight != null) {
+      const unit = answers.desiredWeightUnit ?? "lbs"
+      const min = unit === "lbs" ? 80 : 35
+      const max = unit === "lbs" ? 400 : 180
+      const clamped = Math.max(min, Math.min(max, Math.round(answers.desiredWeight)))
+      setDesiredWeightSlider(clamped)
+    }
+  }, [step, answers.desiredWeight, answers.desiredWeightUnit])
 
   const progress = (step + 1) / TOTAL_STEPS
 
@@ -281,6 +357,7 @@ export default function OnboardingFlow({ onComplete, onBackToLanding }: Onboardi
       console.warn("[Onboarding] Failed to save to server (continuing locally)", e)
     }
     await saveOnboardingGoals(recommended)
+    await saveOnboardingBodyToGoals(answers)
     await setOnboardingComplete()
     onComplete()
   }, [answers, setOnboardingComplete, setGuestId, onComplete])
@@ -291,14 +368,33 @@ export default function OnboardingFlow({ onComplete, onBackToLanding }: Onboardi
         placement: ONBOARDING_PAYWALL_PLACEMENT,
         params: { source: "onboarding_try_free" },
       })
-        .then(completeOnboarding)
+        .then(async () => {
+          try {
+            const { getCustomerInfo } = await import("../../services/revenuecat")
+            const info = await getCustomerInfo()
+            const hasHarbaMediaPro = Boolean(
+              info.entitlements.active["Harba Media Pro"] ||
+              info.entitlements.active["harba_media_pro"] ||
+              info.entitlements.active["harba-media-pro"]
+            )
+            if (hasHarbaMediaPro) {
+              const { scheduleFreeTrialReminders } = await import("../../services/notifications")
+              await scheduleFreeTrialReminders(3)
+            }
+          } catch (e) {
+            console.warn("[Onboarding] reminder scheduling skipped", e)
+          }
+          await completeOnboarding()
+        })
         .catch(completeOnboarding)
       return
     }
-    if (step === 23) {
+    if (step === 22) {
       setIsLoadingPlan(true)
+      setStep(23)
       return
     }
+    if (step === 23) return
     if (step === 24) {
       setStep(25)
       return
@@ -306,15 +402,6 @@ export default function OnboardingFlow({ onComplete, onBackToLanding }: Onboardi
     setStep((s) => s + 1)
   }, [step, completeOnboarding, registerPlacement])
 
-  useEffect(() => {
-    if (step === 23 && isLoadingPlan) {
-      const t = setTimeout(() => {
-        setIsLoadingPlan(false)
-        setStep(24)
-      }, 2500)
-      return () => clearTimeout(t)
-    }
-  }, [step, isLoadingPlan])
 
   const goBack = useCallback(() => {
     if (step === 23 && isLoadingPlan) return
@@ -509,7 +596,17 @@ export default function OnboardingFlow({ onComplete, onBackToLanding }: Onboardi
           <StepReferral value={referralCode} onChangeText={setReferralCode} />
         )}
         {step === 22 && <StepTimeToGenerate />}
-        {step === 23 && <StepSettingUp isLoading={isLoadingPlan} />}
+        {step === 23 && (
+          <StepSettingUp
+            answers={answers}
+            onPlanReady={(plan) => {
+              saveOnboardingGoals(plan).then(() => {
+                setIsLoadingPlan(false)
+                setStep(24)
+              })
+            }}
+          />
+        )}
         {step === 24 && <StepPlanReady answers={answers} />}
         {step === 25 && <StepCreateAccount />}
         {step === TRY_FREE_STEP && <StepTryFree />}
@@ -940,8 +1037,8 @@ function StepDesiredWeight({
   const min = isLbs ? 80 : 35
   const max = isLbs ? 400 : 180
   const range = Array.from({ length: max - min + 1 }, (_, i) => min + i)
-  const displayValue = Math.round(value * 10) / 10
   const valueInRange = Math.max(min, Math.min(max, Math.round(value)))
+  const items = range.map((n) => ({ label: `${n} ${unit}`, value: n }))
   return (
     <View style={styles.stepRoot}>
       <Text style={styles.title}>What is your desired weight?</Text>
@@ -957,26 +1054,28 @@ function StepDesiredWeight({
         </Pressable>
       </View>
       <Text style={styles.valueDisplay}>
-        {displayValue.toFixed(1)} {unit}
+        {valueInRange} {unit}
       </Text>
-      <HorizontalWheelPicker
-        items={range.map((n) => ({ label: `${n} ${unit}`, value: n }))}
+      <WheelPicker
+        items={items}
         selectedValue={valueInRange}
         onValueChange={(n) => onValueChange(n)}
+        style={styles.desiredWeightWheel}
       />
     </View>
   )
 }
 
 function StepRealisticTarget({ answers }: { answers: OnboardingAnswers }) {
-  const current = answers.weightKg ?? 70
-  const desired = answers.desiredWeight ?? current - 5
+  const currentKg = answers.weightKg ?? 70
   const unit = answers.desiredWeightUnit ?? "lbs"
-  const diff = Math.abs(current - desired)
+  const currentInUnit = unit === "lbs" ? currentKg * 2.20462 : currentKg
+  const desired = answers.desiredWeight ?? currentInUnit - 5
+  const diffRounded = Math.round(Math.abs(currentInUnit - desired) + Number.EPSILON)
   return (
     <View style={[styles.stepRoot, styles.centeredStep, { flex: 1 }]}>
       <Text style={styles.realisticTitle}>
-        Losing <Text style={styles.realisticHighlight}>{diff} {unit}</Text> is a realistic target. It's not hard at all!
+        Losing <Text style={styles.realisticHighlight}>{diffRounded} {unit}</Text> is a realistic target. It's not hard at all!
       </Text>
       <Text style={styles.realisticSubtext}>
         90% of users say that the change is obvious after using CalCounter and it is not easy to rebound.
@@ -1012,6 +1111,17 @@ function StepWeightSpeed({
       <Text style={styles.title}>How fast do you want to reach your goal?</Text>
       <Text style={styles.subtitle}>Lose weight speed per week (lbs)</Text>
       <Text style={styles.valueDisplay}>{rounded.toFixed(1)} lbs</Text>
+      <View style={styles.speedIconsRow}>
+        <View style={styles.speedIconWrap}>
+          <Icon name="hourglass-outline" size={28} color="#111827" />
+        </View>
+        <View style={styles.speedIconWrap}>
+          <Icon name="walk-outline" size={28} color="#111827" />
+        </View>
+        <View style={styles.speedIconWrap}>
+          <Icon name="flash-outline" size={28} color="#111827" />
+        </View>
+      </View>
       <View style={styles.sliderContainer}>
         <Text style={styles.sliderMinMax}>{WEIGHT_SPEED_MIN} lbs</Text>
         <Slider
@@ -1247,6 +1357,8 @@ function StepNotifications({
   )
 }
 
+const RUNNER_IMAGE_URI = "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800"
+
 function StepBurnedCalories({
   value,
   onSelect,
@@ -1258,9 +1370,7 @@ function StepBurnedCalories({
     <View style={styles.stepRoot}>
       <Text style={styles.title}>Add calories burned back to your daily goal?</Text>
       <View style={styles.runnerCard}>
-        <View style={styles.runnerPlaceholder}>
-          <Icon name="walk" size={80} color="#374151" />
-        </View>
+        <Image source={{ uri: RUNNER_IMAGE_URI }} style={styles.runnerBackgroundImage} resizeMode="cover" />
         <View style={styles.runnerOverlay}>
           <Text style={styles.runnerOverlayLabel}>Today's goal</Text>
           <View style={styles.runnerOverlayRow}>
@@ -1309,33 +1419,34 @@ function StepRollover({
       </View>
       <View style={styles.rolloverInfographic}>
         <View style={styles.rolloverCard}>
-          <View style={styles.rolloverCardHeader}>
-            <Icon name="flame" size={16} color="#dc2626" />
-            <Text style={styles.rolloverCardTitleRed}>Yesterday</Text>
+          <View>
+            <View style={styles.rolloverCardHeader}>
+              <Icon name="flame" size={16} color="#dc2626" />
+              <Text style={styles.rolloverCardTitleRed}>Yesterday</Text>
+            </View>
+            <Text style={styles.rolloverBigText}>350/500</Text>
           </View>
-          <Text style={styles.rolloverBigText}>350/500</Text>
           <View style={styles.rolloverCircleWrap}>
             <View style={[styles.rolloverCircle, styles.rolloverCirclePartial]} />
-            <View style={styles.rolloverBubble}>
-              <Text style={styles.rolloverBubbleText}>Cals left 150</Text>
-            </View>
+            <Text style={styles.rolloverBubbleTextPlain}>150 left</Text>
           </View>
         </View>
         <View style={styles.rolloverCard}>
-          <View style={styles.rolloverCardHeader}>
-            <Icon name="flame" size={16} color="#374151" />
-            <Text style={styles.rolloverCardTitle}>Today</Text>
-          </View>
-          <Text style={styles.rolloverBigText}>350/650</Text>
-          <View style={styles.rolloverRolledPill}>
-            <Icon name="arrow-undo" size={14} color="#3b82f6" />
-            <Text style={styles.rolloverRolledText}>+150</Text>
+          <View>
+            <View style={styles.rolloverCardHeader}>
+              <Icon name="flame" size={16} color="#374151" />
+              <Text style={styles.rolloverCardTitle}>Today</Text>
+            </View>
+            <Text style={styles.rolloverBigText}>350/650</Text>
+            <View style={styles.rolloverRolledPill}>
+              <Icon name="arrow-undo" size={14} color="#3b82f6" />
+              <Text style={styles.rolloverRolledText}>+150</Text>
+            </View>
           </View>
           <View style={styles.rolloverCircleWrap}>
             <View style={[styles.rolloverCircle, styles.rolloverCirclePartial2]} />
-            <View style={styles.rolloverBubble}>
-              <Text style={styles.rolloverBubbleText}>Cals left 150 + 150</Text>
-            </View>
+            <Text style={styles.rolloverBubbleTextPlain}>150+
+150</Text>
           </View>
         </View>
       </View>
@@ -1362,7 +1473,7 @@ function StepRollover({
 function StepRating() {
   return (
     <View style={styles.stepRoot}>
-      <Text style={[styles.title, styles.textCenter]}>Give us rating</Text>
+      <Text style={[styles.title, styles.textCenter]}>Give us a rating</Text>
       <View style={styles.ratingCard}>
         <Text style={styles.ratingScore}>4.8</Text>
         <View style={styles.ratingStarsRow}>
@@ -1374,14 +1485,22 @@ function StepRating() {
       </View>
       <Text style={[styles.socialProof, styles.textCenter]}>CalCounter was made for people like you</Text>
       <View style={styles.ratingAvatars}>
-        <View style={styles.ratingAvatar}><Icon name="person" size={24} color="#6b7280" /></View>
-        <View style={[styles.ratingAvatar, styles.ratingAvatarOverlap]}><Icon name="person" size={24} color="#6b7280" /></View>
-        <View style={[styles.ratingAvatar, styles.ratingAvatarOverlap]}><Icon name="person" size={24} color="#6b7280" /></View>
+        <View style={styles.ratingAvatar}>
+          <Image source={{ uri: "https://i.pravatar.cc/100?img=1" }} style={styles.ratingAvatarImage} />
+        </View>
+        <View style={[styles.ratingAvatar, styles.ratingAvatarOverlap]}>
+          <Image source={{ uri: "https://i.pravatar.cc/100?img=2" }} style={styles.ratingAvatarImage} />
+        </View>
+        <View style={[styles.ratingAvatar, styles.ratingAvatarOverlap]}>
+          <Image source={{ uri: "https://i.pravatar.cc/100?img=3" }} style={styles.ratingAvatarImage} />
+        </View>
       </View>
       <Text style={[styles.userCount, styles.textCenter]}>2M+ CalCounter Users</Text>
       <View style={styles.testimonialCard}>
         <View style={styles.testimonialHeader}>
-          <View style={styles.testimonialAvatar}><Icon name="person" size={28} color="#6b7280" /></View>
+          <View style={styles.testimonialAvatar}>
+            <Image source={{ uri: "https://i.pravatar.cc/100?img=12" }} style={styles.testimonialAvatarImage} />
+          </View>
           <View style={styles.testimonialMeta}>
             <Text style={styles.testimonialName}>Jake Sullivan</Text>
             <View style={styles.testimonialStars}>
@@ -1441,21 +1560,66 @@ function StepTimeToGenerate() {
   )
 }
 
-function StepSettingUp({ isLoading }: { isLoading: boolean }) {
+const SETUP_STEPS = [
+  "Calculating calories...",
+  "Calculating carbs...",
+  "Calculating protein...",
+  "Calculating fats...",
+  "Calculating sodium...",
+  "Calculating fiber...",
+  "Calculating sugar...",
+  "Calculating water...",
+  "Saving your plan...",
+]
+
+function StepSettingUp({
+  answers,
+  onPlanReady,
+}: {
+  answers: OnboardingAnswers
+  onPlanReady: (plan: import("../../hooks/useOnboarding").RecommendedGoals) => void
+}) {
+  const [progress, setProgress] = useState(0)
+  const [stepLabel, setStepLabel] = useState(SETUP_STEPS[0])
+
+  useEffect(() => {
+    const plan = computeRecommendations(answers)
+    let step = 0
+    const totalSteps = SETUP_STEPS.length
+    const interval = setInterval(() => {
+      if (step < totalSteps) {
+        setStepLabel(SETUP_STEPS[step])
+        setProgress(Math.min(100, Math.round(((step + 1) / totalSteps) * 100)))
+        step += 1
+      }
+      if (step >= totalSteps) {
+        clearInterval(interval)
+        setProgress(100)
+        setStepLabel("Done!")
+        onPlanReady(plan)
+      }
+    }, 400)
+    return () => clearInterval(interval)
+  }, [answers, onPlanReady])
+
   return (
     <View style={styles.stepRoot}>
-      <Text style={styles.percentText}>23%</Text>
+      <Text style={styles.percentText}>{progress}%</Text>
       <Text style={styles.title}>We're setting up everything for you</Text>
       <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: "23%" }]} />
+        <View style={[styles.progressFill, { width: `${progress}%` }]} />
       </View>
-      <Text style={styles.loadingSubtext}>Customizing your plan...</Text>
+      <Text style={styles.loadingSubtext}>{stepLabel}</Text>
       <View style={styles.planCard}>
         <Text style={styles.planCardTitle}>Daily recommendation for</Text>
         <Text style={styles.planCardItem}>• Calories</Text>
         <Text style={styles.planCardItem}>• Carbs</Text>
         <Text style={styles.planCardItem}>• Protein</Text>
         <Text style={styles.planCardItem}>• Fats</Text>
+        <Text style={styles.planCardItem}>• Sodium</Text>
+        <Text style={styles.planCardItem}>• Fiber</Text>
+        <Text style={styles.planCardItem}>• Sugar</Text>
+        <Text style={styles.planCardItem}>• Water</Text>
       </View>
     </View>
   )
@@ -1485,6 +1649,30 @@ function StepPlanReady({ answers }: { answers: OnboardingAnswers }) {
           <Text style={styles.planSummaryLabel}>Fats</Text>
           <Text style={styles.planSummaryValue}>{recommended.fatGoal}g</Text>
         </View>
+        {recommended.sodiumGoal != null && (
+          <View style={styles.planSummaryRow}>
+            <Text style={styles.planSummaryLabel}>Sodium</Text>
+            <Text style={styles.planSummaryValue}>{recommended.sodiumGoal}mg</Text>
+          </View>
+        )}
+        {recommended.fiberGoal != null && (
+          <View style={styles.planSummaryRow}>
+            <Text style={styles.planSummaryLabel}>Fiber</Text>
+            <Text style={styles.planSummaryValue}>{recommended.fiberGoal}g</Text>
+          </View>
+        )}
+        {recommended.sugarGoal != null && (
+          <View style={styles.planSummaryRow}>
+            <Text style={styles.planSummaryLabel}>Sugar</Text>
+            <Text style={styles.planSummaryValue}>{recommended.sugarGoal}g</Text>
+          </View>
+        )}
+        {recommended.waterGoalMl != null && (
+          <View style={styles.planSummaryRow}>
+            <Text style={styles.planSummaryLabel}>Water</Text>
+            <Text style={styles.planSummaryValue}>{recommended.waterGoalMl} ml</Text>
+          </View>
+        )}
       </View>
     </View>
   )
@@ -1506,6 +1694,12 @@ function StepTryFree() {
       <Text style={styles.subtitle}>
         Start your free trial to use AI calorie scanning and track your progress.
       </Text>
+      <View style={styles.trialReminderRow}>
+        <Icon name="notifications-outline" size={18} color="#111827" />
+        <Text style={styles.trialReminderText}>
+          We will send you a reminder before your free trial ends.
+        </Text>
+      </View>
       <Text style={styles.noPayment}>✓ No Payment Due Now</Text>
     </View>
   )
@@ -1746,6 +1940,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     position: "relative",
   },
+  desiredWeightWheel: {
+    marginTop: 12,
+    alignSelf: "stretch",
+  },
   wheelScroll: {
     height: WHEEL_VISIBLE_HEIGHT,
   },
@@ -1853,6 +2051,15 @@ const styles = StyleSheet.create({
   sliderOptionLabelSelected: {
     color: "#111827",
     fontWeight: "600",
+  },
+  speedIconsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    paddingHorizontal: 8,
+  },
+  speedIconWrap: {
+    alignItems: "center",
   },
   sliderContainer: {
     flexDirection: "row",
@@ -2117,14 +2324,14 @@ const styles = StyleSheet.create({
     minHeight: 180,
     backgroundColor: "#e5e7eb",
   },
-  runnerPlaceholder: {
+  runnerBackgroundImage: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: "center",
-    justifyContent: "center",
+    width: "100%",
+    height: "100%",
   },
   runnerOverlay: {
     position: "absolute",
@@ -2193,11 +2400,13 @@ const styles = StyleSheet.create({
   },
   rolloverCard: {
     flex: 1,
+    minHeight: 160,
     backgroundColor: "#ffffff",
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
     borderColor: "#e5e7eb",
+    justifyContent: "space-between",
   },
   rolloverCardHeader: {
     flexDirection: "row",
@@ -2229,7 +2438,7 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
+    alignSelf: "center",
   },
   rolloverCircle: {
     position: "absolute",
@@ -2249,17 +2458,13 @@ const styles = StyleSheet.create({
     borderTopColor: "transparent",
     transform: [{ rotate: "-45deg" }],
   },
-  rolloverBubble: {
-    backgroundColor: "#111827",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  rolloverBubbleText: {
-    fontSize: 11,
+  rolloverBubbleTextPlain: {
+    fontSize: 12,
     fontWeight: "600",
-    color: "#ffffff",
+    color: "#111827",
+    marginTop: 4,
+    textAlign: "center",
+    lineHeight: 14,
   },
   rolloverRolledPill: {
     flexDirection: "row",
@@ -2321,6 +2526,11 @@ const styles = StyleSheet.create({
   ratingAvatarOverlap: {
     marginLeft: -12,
   },
+  ratingAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
   testimonialCard: {
     backgroundColor: "#f9fafb",
     borderRadius: 12,
@@ -2342,6 +2552,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+    overflow: "hidden",
+  },
+  testimonialAvatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   testimonialMeta: {
     flex: 1,
@@ -2466,6 +2682,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#059669",
     marginTop: 16,
+  },
+  trialReminderRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  trialReminderText: {
+    flex: 1,
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: "600",
   },
   continueButton: {
     backgroundColor: "#111827",

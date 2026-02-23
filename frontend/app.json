@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "CalCounter",
+    "name": "CalCounter - Calorie Tracker",
     "slug": "calorie-watcher",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,10 +16,11 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.caloriewatcher.app",
+      "bundleIdentifier": "com.calorietracker.harba.app",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to your camera to take photos of your food.",
-        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select food images."
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select food images.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -47,9 +48,17 @@
     "plugins": [
       "expo-dev-client",
       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ],
+      [
         "expo-camera",
         {
-          "cameraPermission": "Allow CalCounter to access your camera to take photos of your food."
+          "cameraPermission": "Allow CalCounter - Calorie Tracker to access your camera to take photos of your food."
         }
       ],
       "expo-notifications"

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { View, ScrollView, StyleSheet, Modal, Text, ActivityIndicator, Pressable, Alert } from "react-native"
 import { StatusBar } from "expo-status-bar"
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context"
@@ -16,6 +16,7 @@ import LandingPage from "./components/landing/LandingPage"
 import OnboardingFlow from "./components/onboarding/OnboardingFlow"
 import { useFoodData } from "./hooks/useFoodData"
 import { useGoals } from "./hooks/useGoals"
+import { useCaloriesBurned } from "./hooks/useCaloriesBurned"
 import { useTheme } from "./hooks/useTheme"
 import { useRevenueCat } from "./hooks/useRevenueCat"
 import { useOnboarding } from "./hooks/useOnboarding"
@@ -26,6 +27,7 @@ import {
 } from "./services/revenuecat"
 
 const SUPERWALL_API_KEY = process.env.EXPO_PUBLIC_SUPERWALL_PUBLIC_API_KEY ?? ""
+const CAMERA_PAYWALL_PLACEMENT = "buy_credits"
 
 function AppContent() {
   const { isComplete, isLoading, setOnboardingComplete, resetOnboarding } = useOnboarding()
@@ -68,9 +70,27 @@ function MainApp({ resetOnboarding }: { resetOnboarding?: () => Promise<void> })
   const [isProcessing, setIsProcessing] = useState(false)
   const { darkMode } = useTheme()
   const { addFood, getFoodsForDate, getTotalsForDate, getWeeklyData, deleteFood, updateFood, clearAllFoods } = useFoodData()
-  const { goals, updateWeight, updateGoalWeight, updateHeight } = useGoals()
+  const { goals, updateWeight, updateGoalWeight, updateHeight, updateBodyMetrics } = useGoals()
+  const { getCaloriesBurned, setCaloriesBurned } = useCaloriesBurned()
   const revenueCat = useRevenueCat()
-  usePlacement({
+
+  const getEffectiveCalorieGoal = useCallback(
+    (dateStr: string) => {
+      const base = goals.calorieGoal
+      const burned = goals.addBurnedCaloriesToGoal ? getCaloriesBurned(dateStr) : 0
+      if (!goals.rolloverCalories) return base + burned
+      const d = new Date(dateStr + "T12:00:00")
+      d.setDate(d.getDate() - 1)
+      const yesterdayStr = d.toISOString().split("T")[0]
+      const yesterdayConsumed = getTotalsForDate(yesterdayStr).calories
+      const yesterdayBurned = goals.addBurnedCaloriesToGoal ? getCaloriesBurned(yesterdayStr) : 0
+      const yesterdayGoal = base + yesterdayBurned
+      const rollover = Math.max(-200, Math.min(200, yesterdayConsumed - yesterdayGoal))
+      return base + burned + rollover
+    },
+    [goals.calorieGoal, goals.addBurnedCaloriesToGoal, goals.rolloverCalories, getCaloriesBurned, getTotalsForDate]
+  )
+  const { registerPlacement } = usePlacement({
     onError: (error: unknown) => {
       Alert.alert("Paywall error", error instanceof Error ? error.message : String(error))
     },
@@ -124,6 +144,38 @@ function MainApp({ resetOnboarding }: { resetOnboarding?: () => Promise<void> })
     setCameraVisible(false)
   }
 
+  const hasHarbaMediaPro = useCallback((customerInfo: any) => {
+    return Boolean(
+      customerInfo?.entitlements?.active?.["Harba Media Pro"] ||
+        customerInfo?.entitlements?.active?.["harba_media_pro"] ||
+        customerInfo?.entitlements?.active?.["harba-media-pro"]
+    )
+  }, [])
+
+  const handleOpenCamera = useCallback(async () => {
+    if (hasHarbaMediaPro(revenueCat.customerInfo)) {
+      setCameraVisible(true)
+      return
+    }
+
+    try {
+      await registerPlacement({
+        placement: CAMERA_PAYWALL_PLACEMENT,
+        params: { source: "camera_feature" },
+      })
+    } catch (error) {
+      console.warn("[Camera] paywall placement failed", error)
+    }
+
+    const refreshed = await revenueCat.refreshCustomerInfo().catch(() => null)
+    if (hasHarbaMediaPro(refreshed ?? revenueCat.customerInfo)) {
+      setCameraVisible(true)
+      return
+    }
+
+    Alert.alert("Subscription required", "AI Camera requires the Harba Media Pro subscription.")
+  }, [hasHarbaMediaPro, registerPlacement, revenueCat])
+
   return (
     <SafeAreaView style={[styles.container, darkMode && styles.containerDark]} edges={["top"]}>
       <StatusBar style={darkMode ? "light" : "dark"} />
@@ -143,12 +195,12 @@ function MainApp({ resetOnboarding }: { resetOnboarding?: () => Promise<void> })
                 selectedDate={selectedDate}
                 onDateChange={setSelectedDate}
                 totalsByDate={getTotalsForDate}
-                calorieGoal={goals.calorieGoal}
+                calorieGoal={getEffectiveCalorieGoal(selectedDate)}
               />
               <DashboardPanels
                 selectedDate={selectedDate}
                 totals={getTotalsForDate(selectedDate)}
-                calorieGoal={goals.calorieGoal}
+                calorieGoal={getEffectiveCalorieGoal(selectedDate)}
                 macroGoals={{
                   protein: goals.proteinGoal,
                   carbs: goals.carbsGoal,
@@ -157,6 +209,10 @@ function MainApp({ resetOnboarding }: { resetOnboarding?: () => Promise<void> })
                 foods={getFoodsForDate(selectedDate)}
                 onDeleteFood={deleteFood}
                 onUpdateFood={updateFood}
+                darkMode={darkMode}
+                addBurnedCaloriesToGoal={goals.addBurnedCaloriesToGoal}
+                caloriesBurned={getCaloriesBurned(selectedDate)}
+                onCaloriesBurnedChange={(v) => setCaloriesBurned(selectedDate, v)}
               />
             </>
           )}
@@ -171,6 +227,7 @@ function MainApp({ resetOnboarding }: { resetOnboarding?: () => Promise<void> })
               onUpdateWeight={updateWeight}
               onUpdateGoalWeight={updateGoalWeight}
               onUpdateHeight={updateHeight}
+              onUpdateBodyMetrics={updateBodyMetrics}
             />
           )}
 
@@ -188,7 +245,7 @@ function MainApp({ resetOnboarding }: { resetOnboarding?: () => Promise<void> })
 
         {/* Floating Action Button - only show on home page */}
         {activePage === "home" && (
-          <FloatingActionButton onPress={() => setCameraVisible(true)} />
+          <FloatingActionButton onPress={handleOpenCamera} />
         )}
 
         {/* Bottom Navigation */}

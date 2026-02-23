@@ -9,6 +9,12 @@ export interface Goals {
   weightKg?: number;
   heightCm?: number;
   goalWeightKg?: number;
+  sodiumGoal?: number;
+  fiberGoal?: number;
+  sugarGoal?: number;
+  waterGoalMl?: number;
+  addBurnedCaloriesToGoal?: boolean;
+  rolloverCalories?: boolean;
 }
 
 const STORAGE_KEY = '@calorie_watcher_goals';
@@ -80,6 +86,14 @@ export function useGoals() {
     await saveGoals(newGoals);
   };
 
+  const updateBodyMetrics = async (updates: { weightKg?: number; goalWeightKg?: number; heightCm?: number }) => {
+    const next = { ...goals };
+    if (updates.weightKg != null) next.weightKg = Math.max(0, updates.weightKg);
+    if (updates.goalWeightKg != null) next.goalWeightKg = Math.max(0, updates.goalWeightKg);
+    if (updates.heightCm != null) next.heightCm = Math.max(0, updates.heightCm);
+    await saveGoals(next);
+  };
+
   const resetToDefaults = async () => {
     await saveGoals(DEFAULT_GOALS);
   };
@@ -92,6 +106,7 @@ export function useGoals() {
     updateWeight,
     updateGoalWeight,
     updateHeight,
+    updateBodyMetrics,
     resetToDefaults,
   };
 }
