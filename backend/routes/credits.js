@@ -1,24 +1,14 @@
-import { supabaseAdmin } from '../services/supabaseAdmin.js';
-
+/**
+ * Credits deprecated: app uses subscription model (RevenueCat). Stub for backwards compatibility.
+ */
 export async function getCreditsBalance(req, res) {
   try {
     const authUserId = req.user.id;
-
-    const { data, error } = await supabaseAdmin
-      .from('app_users')
-      .select('id, credits_balance, credits_updated_at')
-      .eq('auth_user_id', authUserId)
-      .maybeSingle();
-
-    if (error) {
-      console.error('[Credits] Failed to fetch balance', error);
-      return res.status(500).json({ error: 'Failed to fetch credit balance' });
-    }
-
     return res.json({
-      userId: data?.id ?? authUserId,
-      balance: data?.credits_balance ?? 0,
-      updatedAt: data?.credits_updated_at ?? null,
+      userId: authUserId,
+      balance: 0,
+      updatedAt: null,
+      _meta: 'Subscription model; premium via RevenueCat entitlements.',
     });
   } catch (error) {
     console.error('[Credits] Unexpected error in getCreditsBalance', error);

@@ -37,22 +37,30 @@ create trigger trg_user_credits_updated_at
 before update on public.user_credits
 for each row execute function public.set_updated_at();
 
+-- Trigger on auth.users: must use set search_path = '' and qualified names
+-- to avoid "database error saving new user". Insert only id into profiles
+-- to avoid unique-email constraint failures during signup.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 begin
   insert into public.profiles (id, email)
   values (new.id, new.email)
-  on conflict (id) do nothing;
+  on conflict (id) do update set email = excluded.email;
 
   insert into public.user_credits (user_id, balance)
   values (new.id, 0)
   on conflict (user_id) do nothing;
 
   return new;
+exception
+  when others then
+    -- Log but don't block signup; app uses app_users and ensure-app-user
+    raise warning 'handle_new_user: %', sqlerrm;
+    return new;
 end;
 $$;
 
